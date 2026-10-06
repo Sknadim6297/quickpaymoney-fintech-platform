@@ -11,7 +11,7 @@
             <dl class="admin-detail-list">
                 <div><dt>User</dt><dd><a class="admin-inline-link" href="{{ route('admin.users.show', $exchange->user) }}">{{ $exchange->user->name }}</a><small>{{ $exchange->user->email }}</small></dd></div>
                 <div><dt>USDT amount</dt><dd>{{ $exchange->usdt_amount }} USDT</dd></div>
-                <div><dt>Reference rate</dt><dd>{{ $exchange->exchange_rate }} INR / USDT</dd></div>
+                <div><dt>Reference rate</dt><dd>{{ \App\Models\ExchangeRate::formatDecimal($exchange->exchange_rate) }} INR / USDT</dd></div>
                 <div><dt>INR amount</dt><dd>₹{{ $exchange->inr_amount }}</dd></div>
                 <div><dt>Created</dt><dd>{{ $exchange->created_at->format('M j, Y · H:i') }}</dd></div>
                 <div><dt>Transaction reference</dt><dd>{{ $exchange->transaction_reference ?: 'Not supplied' }}</dd></div>

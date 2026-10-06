@@ -9,16 +9,32 @@ class PublicPagesController extends Controller
 {
     public function home(): View
     {
-        return view('pages.index', ['exchangeRate' => $this->currentRate()]);
+        $customer = auth('web')->user();
+        $ratePlans = $this->activeRatePlans();
+
+        return view('pages.index', [
+            'baseRate' => $ratePlans->firstWhere('plan_key', 'base'),
+            'recordedBalance' => $customer?->role === 'user' ? $customer->balance : null,
+        ]);
     }
 
     public function exchange(): View
     {
-        return view('pages.exchange', ['exchangeRate' => $this->currentRate()]);
+        $customer = auth('web')->user();
+        $ratePlans = $this->activeRatePlans();
+
+        return view('pages.exchange', [
+            'ratePlans' => $ratePlans,
+            'recordedBalance' => $customer?->role === 'user' ? $customer->balance : null,
+        ]);
     }
 
-    private function currentRate(): ?ExchangeRate
+    private function activeRatePlans()
     {
-        return ExchangeRate::where('pair', 'USDT_INR')->first();
+        return ExchangeRate::query()
+            ->where('is_active', true)
+            ->orderBy('minimum_amount')
+            ->orderBy('id')
+            ->get();
     }
 }

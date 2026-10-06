@@ -2,10 +2,13 @@
 
 use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminDepositController;
+use App\Http\Controllers\AdminDepositSettingsController;
 use App\Http\Controllers\AdminExchangeController;
 use App\Http\Controllers\AdminRateController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DepositController;
 use App\Http\Controllers\PublicPagesController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +35,11 @@ Route::middleware(['auth:web', 'auth.session'])->group(function (): void {
         Route::get('/profile', [AuthController::class, 'profile'])->name('profile');
         Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
         Route::put('/security/password', [AuthController::class, 'changePassword'])->name('password.change');
+        Route::get('/deposit', [DepositController::class, 'create'])->name('deposit.create');
+        Route::post('/deposit', [DepositController::class, 'store'])->middleware('throttle:5,1')->name('deposit.store');
+        Route::get('/deposit/payment-qr', [DepositController::class, 'paymentQr'])->name('deposit.payment-qr');
+        Route::get('/deposits/{deposit}', [DepositController::class, 'show'])->name('deposits.show');
+        Route::get('/deposits/{deposit}/proof', [DepositController::class, 'proof'])->name('deposits.proof');
     });
 });
 
@@ -68,7 +76,20 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::put('/exchanges/{exchangeRequest}', [AdminExchangeController::class, 'update'])->name('exchanges.update');
 
             Route::get('/rates', [AdminRateController::class, 'show'])->name('rates.edit');
+            Route::post('/rates', [AdminRateController::class, 'store'])->name('rates.store');
             Route::put('/rates', [AdminRateController::class, 'update'])->name('rates.update');
+            Route::put('/rates/{exchangeRate}', [AdminRateController::class, 'updatePlan'])->name('rates.plans.update');
+            Route::patch('/rates/{exchangeRate}/status', [AdminRateController::class, 'toggleStatus'])->name('rates.plans.status');
+            Route::delete('/rates/{exchangeRate}', [AdminRateController::class, 'destroy'])->name('rates.plans.destroy');
+
+            Route::get('/deposit-settings', [AdminDepositSettingsController::class, 'edit'])->name('deposit-settings.edit');
+            Route::put('/deposit-settings', [AdminDepositSettingsController::class, 'update'])->name('deposit-settings.update');
+            Route::delete('/deposit-settings', [AdminDepositSettingsController::class, 'destroy'])->name('deposit-settings.destroy');
+            Route::get('/deposit-settings/qr', [AdminDepositSettingsController::class, 'qr'])->name('deposit-settings.qr');
+            Route::get('/deposits', [AdminDepositController::class, 'index'])->name('deposits.index');
+            Route::get('/deposits/{deposit}', [AdminDepositController::class, 'show'])->name('deposits.show');
+            Route::put('/deposits/{deposit}', [AdminDepositController::class, 'update'])->name('deposits.update');
+            Route::get('/deposits/{deposit}/proof', [AdminDepositController::class, 'proof'])->name('deposits.proof');
         });
     });
 });

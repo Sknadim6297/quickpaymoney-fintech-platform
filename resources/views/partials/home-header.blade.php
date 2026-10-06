@@ -5,6 +5,10 @@
         </a>
 
         <div class="header-actions">
+            <a class="header-btn icon-only {{ request()->routeIs('home') ? '' : 'header-contact' }}" href="{{ route('contact') }}" aria-label="Contact support">
+                <i class="bi bi-headset" aria-hidden="true"></i>
+            </a>
+
             @auth('web')
                 @php($user = auth('web')->user())
                 <div class="user-menu">
@@ -21,7 +25,8 @@
                     </button>
                     <div class="user-menu-panel" id="user-menu-panel" role="menu" hidden>
                         <p class="user-menu-name">{{ $user->name }}</p>
-                        <a href="{{ route('profile') }}" role="menuitem">Profile &amp; Security</a>
+                        <a href="{{ route('profile') }}" role="menuitem">Profile</a>
+                        <a href="{{ route('profile', ['tab' => 'history']) }}" role="menuitem">History</a>
                         <form method="POST" action="{{ route('logout') }}" data-confirm="You will be signed out of your account." data-confirm-title="Sign out?">
                             @csrf
                             <button type="submit" role="menuitem">Logout</button>
@@ -34,10 +39,6 @@
                     <span>Login</span>
                 </a>
             @endauth
-
-            <a class="header-btn icon-only {{ request()->routeIs('home') ? '' : 'header-contact' }}" href="{{ route('contact') }}" aria-label="Contact support">
-                <i class="bi bi-headset" aria-hidden="true"></i>
-            </a>
         </div>
     </div>
 </header>

@@ -22,25 +22,17 @@
 
         <!-- LIVE RATE -->
         <section class="rate-card">
-            @php
-                $formatRate = static function ($rate): string {
-                    $rate = (string) $rate;
-
-                    return str_contains($rate, '.')
-                        ? rtrim(rtrim($rate, '0'), '.')
-                        : $rate;
-                };
-                $displayRate = (string) ($exchangeRate?->rate ?? '110');
-                $displayRate = $formatRate($displayRate);
-            @endphp
-
             <div class="live-title">
                 <span class="live-dot"></span>
-                LIVE RATE
+                {{ $baseRate?->label ?: $baseRate?->name ?: 'LIVE RATE' }}
             </div>
 
             <div class="rate-title">
-                1 USDT = <span><i class="bi bi-currency-rupee"></i>{{ $displayRate }}</span>
+                @if ($baseRate)
+                    1 USDT = <span><i class="bi bi-currency-rupee"></i>{{ $baseRate->formattedRate() }}</span>
+                @else
+                    <span>Rate temporarily unavailable</span>
+                @endif
             </div>
 
             <div class="rate-subtitle">

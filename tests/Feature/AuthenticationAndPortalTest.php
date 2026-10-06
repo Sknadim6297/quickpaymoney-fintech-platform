@@ -82,11 +82,17 @@ class AuthenticationAndPortalTest extends TestCase
         $this->actingAs($user, 'web')->get(route('profile'))
             ->assertOk()
             ->assertSee('Profile & Security')
-            ->assertSee('Save profile')
-            ->assertSee('Change password')
+            ->assertSee(route('profile', ['tab' => 'history']))
+            ->assertSee(route('profile', ['tab' => 'security']))
+            ->assertSee('Save Details')
+            ->assertDontSee('Change password')
             ->assertDontSee('Account overview')
             ->assertDontSee('Exchange and transaction history')
             ->assertDontSee('98765.43210000');
+
+        $this->actingAs($user, 'web')->get(route('profile', ['tab' => 'security']))
+            ->assertOk()
+            ->assertSee('Change password');
 
         $unverified = User::factory()->unverified()->create()->fresh();
         $this->actingAs($unverified, 'web')->get(route('profile'))
@@ -96,23 +102,29 @@ class AuthenticationAndPortalTest extends TestCase
     public function test_profile_details_and_password_can_be_updated_from_profile_page(): void
     {
         $user = User::factory()->create(['password' => 'CurrentStrong!Password123']);
+        $otherUser = User::factory()->create(['name' => 'Unchanged User']);
 
         $this->actingAs($user, 'web')
             ->from(route('profile'))
             ->put(route('profile.update'), [
+                'section' => 'personal',
                 'name' => 'Updated Profile Name',
                 'mobile' => '9876543210',
                 'gender' => 'Other',
+                'email' => 'changed@example.test',
+                'user_id' => $otherUser->id,
             ])
             ->assertRedirect(route('profile'))
-            ->assertSessionHas('status', 'Profile updated.');
+            ->assertSessionHas('status', 'Profile details updated.');
 
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
             'name' => 'Updated Profile Name',
             'mobile' => '9876543210',
             'gender' => 'Other',
+            'email' => $user->email,
         ]);
+        $this->assertSame('Unchanged User', $otherUser->fresh()->name);
 
         $this->from(route('profile'))->put(route('password.change'), [
             'current_password' => 'CurrentStrong!Password123',
@@ -122,6 +134,98 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertSessionHas('status', 'Password changed.');
 
         $this->assertTrue(Hash::check('ReplacementStrong!Password456', $user->fresh()->password));
+    }
+
+    public function test_profile_bank_and_wallet_details_require_reauthentication_and_are_encrypted(): void
+    {
+        $user = User::factory()->create(['password' => 'CurrentStrong!Password123']);
+
+        $this->actingAs($user, 'web')
+            ->get(route('profile'))
+            ->assertOk()
+            ->assertSee('Personal Information')
+            ->assertSee('Bank Details')
+            ->assertSee('USDT Wallet Details')
+            ->assertSee('Email Address')
+            ->assertSee('name="account_number"', false)
+            ->assertSee('name="usdt_wallet_address"', false);
+
+        $bankDetails = [
+            'section' => 'bank',
+            'bank_current_password' => 'wrong-password',
+            'account_holder_name' => 'Morgan Example',
+            'bank_name' => 'Example Bank',
+            'account_number' => '123456789012',
+            'ifsc_code' => 'ABCD0123456',
+            'branch_name' => 'Central Branch',
+            'account_type' => 'Savings',
+        ];
+
+        $this->from(route('profile'))
+            ->put(route('profile.update'), $bankDetails)
+            ->assertRedirect(route('profile'))
+            ->assertSessionHasErrors('bank_current_password')
+            ->assertSessionMissing('_old_input.account_number')
+            ->assertSessionMissing('_old_input.bank_current_password');
+        $this->assertNull($user->fresh()->account_number);
+
+        $this->from(route('profile'))
+            ->put(route('profile.update'), [
+                ...$bankDetails,
+                'bank_current_password' => 'CurrentStrong!Password123',
+                'ifsc_code' => 'invalid',
+                'account_type' => 'Business',
+            ])
+            ->assertRedirect(route('profile'))
+            ->assertSessionHasErrors(['ifsc_code', 'account_type'])
+            ->assertSessionMissing('_old_input.account_number');
+        $this->assertNull($user->fresh()->account_number);
+
+        $this->from(route('profile'))
+            ->put(route('profile.update'), [
+                ...$bankDetails,
+                'bank_current_password' => 'CurrentStrong!Password123',
+            ])
+            ->assertRedirect(route('profile'))
+            ->assertSessionHas('status', 'Bank details updated.');
+
+        $user->refresh();
+        $this->assertSame('Morgan Example', $user->account_holder_name);
+        $this->assertSame('Example Bank', $user->bank_name);
+        $this->assertSame('123456789012', $user->account_number);
+        $this->assertSame('ABCD0123456', $user->ifsc_code);
+        $this->assertSame('Central Branch', $user->branch_name);
+        $this->assertSame('Savings', $user->account_type);
+        $this->assertStringNotContainsString('123456789012', $user->getRawOriginal('account_number'));
+        $this->assertDatabaseHas('audit_logs', [
+            'subject_user_id' => $user->id,
+            'event' => 'user.bank_details_updated',
+        ]);
+        $this->assertStringNotContainsString(
+            '123456789012',
+            json_encode(\App\Models\AuditLog::where('event', 'user.bank_details_updated')->firstOrFail()->metadata)
+        );
+
+        $walletDetails = [
+            'section' => 'wallet',
+            'wallet_current_password' => 'CurrentStrong!Password123',
+            'usdt_wallet_address' => 'TQn9Y2khDD95J42FQtQTdwV',
+        ];
+
+        $this->from(route('profile'))
+            ->put(route('profile.update'), $walletDetails)
+            ->assertRedirect(route('profile'))
+            ->assertSessionHas('status', 'USDT wallet details updated.');
+
+        $user->refresh();
+        $this->assertSame($walletDetails['usdt_wallet_address'], $user->usdt_wallet_address);
+        $this->assertStringNotContainsString($walletDetails['usdt_wallet_address'], $user->getRawOriginal('usdt_wallet_address'));
+
+        $this->get(route('profile'))
+            ->assertOk()
+            ->assertSee('Morgan Example')
+            ->assertSee('Example Bank')
+            ->assertSee('TQn9Y2khDD95J42FQtQTdwV');
     }
 
     public function test_home_header_has_guest_and_authenticated_account_controls(): void
@@ -140,8 +244,10 @@ class AuthenticationAndPortalTest extends TestCase
         $this->actingAs($user, 'web')->get(route('home'))
             ->assertOk()
             ->assertSee('Account menu for Morgan Example')
-            ->assertSee('Profile & Security')
+            ->assertSee('>Profile</a>', false)
+            ->assertSee('>History</a>', false)
             ->assertSee(route('profile'))
+            ->assertSee(route('profile', ['tab' => 'history']))
             ->assertSee(route('logout'))
             ->assertSee('name="_token"', false)
             ->assertSee('data-user-menu-toggle');
@@ -153,7 +259,7 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertOk()
             ->assertSee('LIVE RATE')
             ->assertSee('1 USDT =')
-            ->assertSee('>110</span>', false)
+            ->assertSee('>100</span>', false)
             ->assertSee('Fast &amp; secure USDT', false)
             ->assertSee('Exchange Now')
             ->assertSee('LIVE PLATFORM STATS')
@@ -173,10 +279,8 @@ class AuthenticationAndPortalTest extends TestCase
 
     public function test_homepage_formats_live_rate_for_display_without_changing_stored_precision(): void
     {
-        $rate = ExchangeRate::create([
-            'pair' => 'USDT_INR',
-            'rate' => '100.00000000',
-        ]);
+        $rate = ExchangeRate::where('plan_key', 'base')->firstOrFail();
+        $rate->update(['rate' => '100.00000000']);
 
         $this->get(route('home'))
             ->assertOk()
@@ -203,13 +307,13 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertSee('Fast Transactions')
             ->assertSee('Global Access')
             ->assertSee('BALANCE')
-            ->assertSee('$0.00')
+            ->assertSee('Sign in to view')
             ->assertSee('Add Funds')
             ->assertSee('Sell USDT')
             ->assertSee('Get Your Funds')
             ->assertSee('Earn Together')
             ->assertSee('Live Rates')
-            ->assertSee('₹110')
+            ->assertSee('₹100')
             ->assertSee('Above $10,000')
             ->assertSee('₹115')
             ->assertSee('Above $20,000')
@@ -217,7 +321,8 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertSee('Trade ')
             ->assertSee('Reliable');
 
-        $this->assertSame(4, substr_count($response->getContent(), 'aria-disabled="true"'));
+        $this->assertSame(3, substr_count($response->getContent(), 'aria-disabled="true"'));
+        $this->assertStringContainsString('href="' . route('deposit.create') . '"', $response->getContent());
         $this->assertStringNotContainsString('Not available yet', $response->getContent());
         $this->assertStringNotContainsString('No settlement available', $response->getContent());
         $this->assertStringNotContainsString('Rates unavailable', $response->getContent());
@@ -225,10 +330,8 @@ class AuthenticationAndPortalTest extends TestCase
 
     public function test_exchange_page_formats_every_rate_card_and_uses_visible_prime_icon(): void
     {
-        $rate = ExchangeRate::create([
-            'pair' => 'USDT_INR',
-            'rate' => '100.00000000',
-        ]);
+        $rate = ExchangeRate::where('plan_key', 'base')->firstOrFail();
+        $rate->update(['rate' => '100.00000000']);
 
         $response = $this->get(route('exchange'))
             ->assertOk()

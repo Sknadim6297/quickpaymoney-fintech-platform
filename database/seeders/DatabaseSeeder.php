@@ -11,6 +11,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Accounts are created through registration or explicit admin provisioning.
+        $this->call(ExchangeRateSeeder::class);
     }
 }

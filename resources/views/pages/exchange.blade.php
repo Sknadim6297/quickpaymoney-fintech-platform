@@ -8,83 +8,16 @@
 @endsection
 
 @section('styles')
+<link href="{{ asset('assets/css/index.css') }}" rel="stylesheet">
 <link href="{{ asset('assets/css/exchange.css') }}" rel="stylesheet">
 <link href="{{ asset('assets/css/style.css') }}" rel="stylesheet">
 @endsection
 
 @section('content')
-    @php
-        $formatRate = static function ($rate): string {
-            $rate = (string) $rate;
-
-            return str_contains($rate, '.')
-                ? rtrim(rtrim($rate, '0'), '.')
-                : $rate;
-        };
-        $baseRate = $formatRate($exchangeRate?->rate ?? '110');
-        $primeRate = $formatRate('115');
-        $vipRate = $formatRate('120');
-    @endphp
-
     <div class="page-wrapper">
 
 
-        <!-- =====================================
-         HEADER
-    ====================================== -->
-
-        <header class="top-header">
-
-            <div class="header-inner">
-
-
-                <a href="{{ route('home') }}"
-                    class="brand">
-
-                    <div class="brand-symbol">
-                        <span>Q</span>
-                    </div>
-
-                    <div>
-
-                        <div class="brand-text">
-                            Quick Pay<span>Money</span>
-                        </div>
-
-                        <span class="brand-tagline">FAST · SAFE · GLOBAL
-                        </span>
-
-                    </div>
-
-                </a>
-
-
-                <div class="header-actions">
-
-                    <a href="{{ route('login') }}"
-                        class="header-btn">
-
-                        <i class="bi bi-person-fill"></i>
-
-                        Login
-
-                    </a>
-
-
-                    <a href="{{ route('contact') }}"
-                        class="header-btn header-icon">
-
-                        <i class="bi bi-headset"></i>
-
-                    </a>
-
-                </div>
-
-            </div>
-
-        </header>
-
-
+        @include('partials.home-header')
 
         <!-- =====================================
          CONTENT
@@ -183,9 +116,12 @@
                     BALANCE
                 </small>
 
-                <strong>
-                    $0.00
-                </strong>
+                @if (auth('web')->user()?->role === 'user')
+                    <strong>{{ \App\Support\Money::formatUsd($recordedBalance) }}</strong>
+                    <small class="balance-disclaimer">Not a wallet</small>
+                @else
+                    <strong>Sign in to view</strong>
+                @endif
 
             </div>
 
@@ -206,7 +142,7 @@
 
                 <div class="col-6 col-md-3">
 
-                    <button class="action-card" type="button" aria-disabled="true">
+                    <a class="action-card" href="{{ route('deposit.create') }}" aria-label="Deposit add funds">
 
                         <div class="action-icon">
 
@@ -223,7 +159,7 @@
                         </div>
 
                         <i class="bi bi-chevron-right action-arrow"></i>
-                    </button>
+                    </a>
 
                 </div>
 
@@ -343,152 +279,39 @@
     </div>
 
 
-    <!-- BASE RATE -->
-    <div class="rate-card">
-
-        <div class="rate-info">
-
-            <div class="rate-icon usdt-icon">
-                ₮
-            </div>
-
-            <div class="rate-details">
-
-                <div class="rate-name">
-
-                    Base Rate
-
-                    <span class="rate-tag">
-                        LIVE RATE
-                    </span>
-
+    @forelse ($ratePlans as $plan)
+        <article class="rate-card">
+            <div class="rate-info">
+                <div class="rate-icon {{ $plan->plan_key === 'base' ? 'usdt-icon' : '' }} {{ $plan->plan_key === 'prime' ? 'prime-icon' : '' }} {{ $plan->plan_key === 'vip' ? 'vip-icon' : '' }}">
+                    <i class="bi {{ $plan->icon }}" aria-hidden="true"></i>
                 </div>
-
-                <small>
-                    1 USDT = {{ $baseRate }} INR
-                </small>
-
-            </div>
-
-        </div>
-
-
-        <div class="rate-value">
-
-            <div class="rate-number">
-                ₹{{ $baseRate }}
-                <i class="bi bi-chevron-right"></i>
-            </div>
-
-            <small>
-                1 USDT = {{ $baseRate }} INR
-            </small>
-
-        </div>
-
-    </div>
-
-
-    <!-- PRIME RATE -->
-    <div class="rate-card">
-
-        <div class="rate-info">
-
-            <div class="rate-icon prime-icon">
-
-                <i class="bi bi-diamond-fill"></i>
-
-            </div>
-
-            <div class="rate-details">
-
-                <div class="rate-name">
-
-                    Prime Rate
-
-                    <span class="rate-tag">
-                        Above $10,000
-                    </span>
-
+                <div class="rate-details">
+                    <div class="rate-name">
+                        {{ $plan->name }}
+                        @if ($plan->label)
+                            <span class="rate-tag">{{ $plan->label }}</span>
+                        @endif
+                        @if ($plan->formattedMinimumAmount() !== '0')
+                            <span class="rate-tag">Above ${{ $plan->formattedMinimumAmount() }}</span>
+                        @endif
+                    </div>
+                    <small>1 USDT = {{ $plan->formattedRate() }} INR</small>
+                    @if ($plan->description)
+                        <small class="rate-description">{{ $plan->description }}</small>
+                    @endif
                 </div>
-
-                <small>
-                    1 USDT = {{ $primeRate }} INR
-                </small>
-
             </div>
-
-        </div>
-
-
-        <div class="rate-value">
-
-            <div class="rate-number">
-
-                ₹{{ $primeRate }}
-
-                <i class="bi bi-chevron-right"></i>
-
-            </div>
-
-            <small>
-                1 USDT = {{ $primeRate }} INR
-            </small>
-
-        </div>
-
-    </div>
-
-
-    <!-- VIP RATE -->
-    <div class="rate-card">
-
-        <div class="rate-info">
-
-            <div class="rate-icon vip-icon">
-
-                <i class="bi bi-gem"></i>
-
-            </div>
-
-            <div class="rate-details">
-
-                <div class="rate-name">
-
-                    VIP Rate
-
-                    <span class="rate-tag">
-                        Above $20,000
-                    </span>
-
+            <div class="rate-value">
+                <div class="rate-number">
+                    ₹{{ $plan->formattedRate() }}
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
                 </div>
-
-                <small>
-                    1 USDT = {{ $vipRate }} INR
-                </small>
-
+                <small>1 USDT = {{ $plan->formattedRate() }} INR</small>
             </div>
-
-        </div>
-
-
-        <div class="rate-value">
-
-            <div class="rate-number">
-
-                ₹{{ $vipRate }}
-
-                <i class="bi bi-chevron-right"></i>
-
-            </div>
-
-            <small>
-                1 USDT = {{ $vipRate }} INR
-            </small>
-
-        </div>
-
-    </div>
+        </article>
+    @empty
+        <article class="rate-card"><div class="rate-info"><div class="rate-details"><div class="rate-name">Exchange rates are temporarily unavailable.</div></div></div></article>
+    @endforelse
 
     <section class="trade-usdt-banner">
                   <div class="trade-content">

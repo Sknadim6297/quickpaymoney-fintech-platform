@@ -321,6 +321,15 @@ body {
         font-size: 15px;
     }
 
+    .balance-box .balance-disclaimer {
+        display: block;
+        max-width: 190px;
+        margin-top: 5px;
+        color: #b8b8b8;
+        font-size: 9px;
+        line-height: 1.4;
+    }
+
 
 /* =====================================
            ACTION CARDS
@@ -1029,9 +1038,10 @@ body {
     font-weight: 900;
     color: #eee;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
-    white-space: nowrap;
+    white-space: normal;
 }
 
 

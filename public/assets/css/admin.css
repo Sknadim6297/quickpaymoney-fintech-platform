@@ -9,11 +9,14 @@
     --admin-muted: #9a9891;
     --admin-gold: #ffd000;
     --admin-gold-strong: #ffc000;
+    --admin-body-size: 15px;
     min-height: 100vh;
     padding: 0;
     background: radial-gradient(ellipse at 80% 0, rgba(255, 193, 7, .055), transparent 38%), var(--admin-bg);
     color: var(--admin-text);
     font-family: 'Poppins', Arial, sans-serif;
+    font-size: var(--admin-body-size);
+    line-height: 1.6;
 }
 
 .admin-shell {
@@ -58,7 +61,7 @@
 
 .admin-brand-caption {
     color: #817c6d;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: .19em;
 }
@@ -71,7 +74,7 @@
 .admin-nav-label {
     margin: 0 10px 8px;
     color: #77756f;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: .17em;
 }
@@ -83,14 +86,14 @@
 .admin-side-links a {
     position: relative;
     display: flex;
-    min-height: 46px;
+    min-height: 48px;
     align-items: center;
     gap: 13px;
     padding: 0 13px;
     border: 1px solid transparent;
     border-radius: 11px;
     color: #aaa9a4;
-    font-size: 12px;
+    font-size: 15px;
     font-weight: 500;
     text-decoration: none;
     transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
@@ -174,7 +177,7 @@
 .admin-profile-menu-copy strong {
     overflow: hidden;
     color: #eee;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -183,7 +186,7 @@
 .admin-sidebar-user-copy small,
 .admin-profile-menu-copy small {
     color: #88867f;
-    font-size: 10px;
+    font-size: 11px;
 }
 
 .admin-sidebar-footer form,
@@ -203,7 +206,7 @@
     background: transparent;
     color: #c4a8a5;
     font: inherit;
-    font-size: 11px;
+    font-size: 14px;
     text-align: left;
     cursor: pointer;
     transition: background .18s ease, color .18s ease;
@@ -249,7 +252,7 @@
 .admin-breadcrumb {
     gap: 10px;
     color: #85837c;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .admin-breadcrumb i {
@@ -339,7 +342,7 @@
     background: transparent;
     color: #d7d5ce;
     font: inherit;
-    font-size: 11px;
+    font-size: 14px;
     text-align: left;
     text-decoration: none;
 }
@@ -372,7 +375,7 @@
 .admin-page-heading h1 {
     margin: 5px 0 6px;
     color: var(--admin-text);
-    font-size: clamp(25px, 2.4vw, 34px);
+    font-size: clamp(27px, 2.1vw, 30px);
     font-weight: 700;
     letter-spacing: -.045em;
     line-height: 1.25;
@@ -382,14 +385,14 @@
 .admin-panel-heading p {
     margin: 0;
     color: var(--admin-muted);
-    font-size: 11px;
+    font-size: 14px;
     line-height: 1.7;
 }
 
 .admin-eyebrow {
     display: block;
     color: #b2a356;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: .16em;
 }
@@ -410,7 +413,7 @@
     border-radius: 9px;
     background: rgba(255, 255, 255, .025);
     color: #cbc8bd;
-    font-size: 10px;
+    font-size: 13px;
 }
 
 .admin-record-count i {
@@ -459,14 +462,14 @@
 
 .admin-stat-label {
     color: #aaa79d;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 500;
 }
 
 .admin-stat strong {
     margin-top: 7px;
     color: #fff;
-    font-size: 25px;
+    font-size: clamp(28px, 2vw, 32px);
     font-weight: 600;
     letter-spacing: -.04em;
     line-height: 1.15;
@@ -475,7 +478,7 @@
 .admin-stat small {
     margin-top: 8px;
     color: #77756f;
-    font-size: 9px;
+    font-size: 11px;
 }
 
 .admin-user-stats .admin-stat {
@@ -507,7 +510,7 @@
 .admin-panel-heading h2 {
     margin: 5px 0 5px;
     color: #f2f0e9;
-    font-size: 16px;
+    font-size: 20px;
     font-weight: 600;
     letter-spacing: -.02em;
 }
@@ -557,7 +560,7 @@
 .admin-activity-copy strong {
     overflow: hidden;
     color: #e8e6df;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
     text-overflow: ellipsis;
     text-transform: capitalize;
@@ -565,7 +568,7 @@
 
 .admin-activity-copy > span {
     color: #88867e;
-    font-size: 10px;
+    font-size: 11px;
 }
 
 .admin-activity-separator {
@@ -593,7 +596,7 @@
     background: #0b0b0b;
     color: #b9b6ac;
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-    font-size: 10px;
+    font-size: 12px;
     white-space: pre-wrap;
 }
 
@@ -623,14 +626,14 @@
 
 .admin-empty-state strong {
     color: #d9d6cd;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 600;
 }
 
 .admin-empty-state p {
     margin: 5px 0 0;
     color: #817f77;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .admin-button {
@@ -646,7 +649,7 @@
     box-shadow: 0 5px 16px rgba(255, 193, 7, .1);
     color: #171305;
     font: inherit;
-    font-size: 10px;
+    font-size: 14px;
     font-weight: 700;
     line-height: 1.2;
     text-decoration: none;
@@ -673,6 +676,24 @@
     background: #202020;
     color: #ffe16b;
     box-shadow: none;
+}
+
+.admin-button-danger {
+    border-color: rgba(232, 95, 87, .28);
+    background: rgba(117, 34, 30, .22);
+    box-shadow: none;
+    color: #ffb1aa;
+}
+
+.admin-button-danger:hover {
+    border-color: rgba(232, 95, 87, .55);
+    background: rgba(117, 34, 30, .38);
+    box-shadow: none;
+    color: #ffd0cb;
+}
+
+.admin-delete-settings-form {
+    margin-top: 12px;
 }
 
 .admin-button:focus-visible,
@@ -743,7 +764,7 @@
     background: #0e0e0e;
     color: #f3f0e7;
     font-family: inherit;
-    font-size: 10px;
+    font-size: 14px;
     transition: border-color .18s ease, box-shadow .18s ease;
 }
 
@@ -791,7 +812,7 @@
 .admin-table {
     min-width: 800px;
     color: #d5d2c8;
-    font-size: 10px;
+    font-size: 14px;
 }
 
 .admin-table th,
@@ -804,7 +825,7 @@
 .admin-table th {
     background: rgba(255, 255, 255, .018);
     color: #96938a;
-    font-size: 8px;
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: .075em;
     text-transform: uppercase;
@@ -850,7 +871,7 @@
 .admin-table-primary {
     overflow: hidden;
     color: #e9e6de;
-    font-size: 10px;
+    font-size: 13px;
     font-weight: 600;
     text-overflow: ellipsis;
 }
@@ -859,13 +880,13 @@
 .admin-table-secondary {
     overflow: hidden;
     color: #88857d;
-    font-size: 9px;
+    font-size: 11px;
     text-overflow: ellipsis;
 }
 
 .admin-role-label {
     color: #d4d0c5;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 500;
     text-transform: capitalize;
 }
@@ -879,7 +900,7 @@
     border-radius: 99px;
     background: #262626;
     color: #d4d0c5;
-    font-size: 8px;
+    font-size: 11px;
     font-weight: 600;
     line-height: 1.1;
     text-transform: capitalize;
@@ -944,7 +965,7 @@
 
 .admin-id {
     color: #d2c166;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 600;
 }
 
@@ -958,7 +979,7 @@
     justify-content: space-between;
     gap: 12px;
     color: #96938a;
-    font-size: 10px;
+    font-size: 13px;
 }
 
 .admin-pagination nav > div:first-child {
@@ -1036,7 +1057,7 @@
 
 .admin-detail-list dt {
     color: #89867e;
-    font-size: 10px;
+    font-size: 13px;
     font-weight: 500;
 }
 
@@ -1045,13 +1066,13 @@
     gap: 4px;
     margin: 0;
     color: #e3e0d7;
-    font-size: 10px;
+    font-size: 14px;
     overflow-wrap: anywhere;
 }
 
 .admin-detail-list dd small {
     color: #85827a;
-    font-size: 9px;
+    font-size: 11px;
 }
 
 .admin-profile-identity {
@@ -1077,13 +1098,13 @@
 
 .admin-profile-identity strong {
     color: #f1efe8;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
 }
 
 .admin-profile-identity small {
     color: #929087;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .admin-form {
@@ -1094,7 +1115,7 @@
 .admin-form label {
     margin: 6px 0 0;
     color: #c6c2b7;
-    font-size: 10px;
+    font-size: 14px;
     font-weight: 500;
 }
 
@@ -1131,13 +1152,13 @@
 .admin-inline-notice p {
     margin: 0;
     color: #c7c1a6;
-    font-size: 10px;
+    font-size: 14px;
     line-height: 1.6;
 }
 
 .admin-field-error {
     color: #ff9a9f;
-    font-size: 9px;
+    font-size: 12px;
 }
 
 .admin-inline-link {
@@ -1182,13 +1203,13 @@
 
 .admin-security-status strong {
     color: #a6e5bc;
-    font-size: 11px;
+    font-size: 14px;
 }
 
 .admin-security-status p {
     margin: 5px 0 0;
     color: #9ba99e;
-    font-size: 10px;
+    font-size: 13px;
     line-height: 1.6;
 }
 
@@ -1198,7 +1219,7 @@
     gap: 9px;
     margin-top: 14px;
     color: #99968c;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .admin-security-detail i {
@@ -1221,7 +1242,7 @@
 .admin-rate-updated {
     margin: 0;
     color: #89867e;
-    font-size: 9px;
+    font-size: 12px;
     line-height: 1.7;
 }
 
@@ -1248,7 +1269,7 @@
     gap: 11px;
     margin: 2px 0 10px;
     color: #aaa69a;
-    font-size: 11px;
+    font-size: 13px;
 }
 
 .admin-rate-value i {
@@ -1269,6 +1290,108 @@
 
 .admin-rate-form {
     margin-top: 16px;
+}
+
+.admin-rate-create {
+    margin-bottom: 18px;
+}
+
+.admin-rate-plan-list {
+    display: grid;
+    gap: 16px;
+}
+
+.admin-rate-plan-title,
+.admin-rate-plan-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-rate-plan-title h2 {
+    margin-bottom: 0;
+}
+
+.admin-rate-plan-summary {
+    margin: 3px 0 0;
+    color: #9a978e;
+    font-size: 13px;
+}
+
+.admin-rate-plan-form {
+    display: grid;
+    gap: 14px;
+}
+
+.admin-rate-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.admin-rate-form-grid > div {
+    min-width: 0;
+}
+
+.admin-rate-form-grid .portal-input {
+    width: 100%;
+    min-height: 42px;
+    margin: 0;
+    padding: 9px 12px;
+    border: 1px solid #38372f;
+    border-radius: 9px;
+    background: #0e0e0e;
+    color: #f3f0e7;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.admin-rate-form-grid .portal-input:focus {
+    border-color: #b99b28;
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(255, 208, 0, .1);
+}
+
+.admin-rate-form-grid label:not(.admin-rate-active-toggle) {
+    display: block;
+    margin-bottom: 6px;
+    color: #d8d5cc;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.admin-rate-description-field,
+.admin-rate-active-field {
+    grid-column: 1 / -1;
+}
+
+.admin-rate-form-grid textarea.portal-input {
+    min-height: 72px;
+    resize: vertical;
+}
+
+.admin-rate-active-toggle {
+    display: inline-flex;
+    min-height: 40px;
+    align-items: center;
+    gap: 9px;
+    color: #d8d5cc;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.admin-rate-active-toggle input {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--admin-gold);
+}
+
+.admin-rate-plan-actions {
+    flex-wrap: wrap;
+}
+
+.admin-form-help code {
+    color: #ffe16b;
 }
 
 .admin-rate-note {
@@ -1294,15 +1417,186 @@
 .admin-rate-note h2 {
     margin: 15px 0 8px;
     color: #eeeae0;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 600;
 }
 
 .admin-rate-note p {
     margin: 0;
     color: #a39f94;
-    font-size: 10px;
+    font-size: 13px;
     line-height: 1.8;
+}
+
+.admin-rate-page-heading {
+    align-items: center;
+}
+
+.admin-rate-directory {
+    padding: 0;
+    overflow: hidden;
+}
+
+.admin-rate-directory > .admin-panel-heading {
+    margin: 0;
+    padding: 22px 23px 18px;
+}
+
+.admin-rate-directory > .admin-table-wrap {
+    border-top: 1px solid var(--admin-line);
+}
+
+.admin-rate-table {
+    min-width: 1020px;
+}
+
+.admin-rate-table th,
+.admin-rate-history-table th {
+    white-space: nowrap;
+}
+
+.admin-rate-table-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #eeeae0;
+    font-weight: 600;
+}
+
+.admin-rate-table-name i {
+    color: var(--admin-gold);
+}
+
+.admin-rate-table-description {
+    display: block;
+    max-width: 260px;
+    margin-top: 4px;
+    color: #8f8c83;
+    font-size: 11px;
+    line-height: 1.45;
+    white-space: normal;
+}
+
+.admin-rate-type {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border: 1px solid var(--admin-line);
+    border-radius: 20px;
+    color: #aaa69a;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.admin-rate-type.default {
+    border-color: rgba(255, 208, 0, .22);
+    background: rgba(255, 208, 0, .07);
+    color: #e7ce61;
+}
+
+.admin-rate-type.custom {
+    color: #c2beb3;
+}
+
+.admin-rate-table .portal-badge.inactive {
+    border-color: rgba(255, 255, 255, .12);
+    background: rgba(255, 255, 255, .055);
+    color: #aaa69a;
+}
+
+.admin-rate-table .portal-badge.inactive .admin-badge-dot {
+    background: #88847a;
+    box-shadow: none;
+}
+
+.admin-rate-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-rate-actions form {
+    margin: 0;
+}
+
+.admin-rate-actions .admin-icon-button {
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.admin-rate-actions .admin-rate-delete-button {
+    color: #df938d;
+}
+
+.admin-rate-actions .admin-rate-delete-button:hover {
+    border-color: rgba(232, 95, 87, .4);
+    background: rgba(117, 34, 30, .24);
+    color: #ffb1aa;
+}
+
+.admin-rate-modal .modal-content {
+    border: 1px solid rgba(255, 208, 0, .2);
+    border-radius: 16px;
+    background: #111;
+    color: var(--admin-text);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .65);
+}
+
+.admin-rate-modal .modal-header,
+.admin-rate-modal .modal-footer {
+    padding: 20px 24px;
+    border-color: var(--admin-line);
+}
+
+.admin-rate-modal .modal-title {
+    margin: 4px 0 0;
+    color: #f5f1e7;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.admin-rate-modal .btn-close {
+    filter: invert(1) grayscale(1);
+}
+
+.admin-rate-modal .modal-body {
+    padding: 22px 24px;
+}
+
+.admin-rate-modal .modal-footer .admin-button {
+    margin: 0;
+}
+
+.admin-rate-modal-errors {
+    margin-bottom: 18px;
+}
+
+.admin-rate-modal-errors ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.admin-rate-modal .admin-rate-form-grid {
+    gap: 16px;
+}
+
+.admin-rate-modal .admin-rate-form-grid .portal-input {
+    display: block;
+    min-height: 43px;
+}
+
+.admin-rate-modal .admin-rate-form-grid textarea.portal-input {
+    min-height: 86px;
+}
+
+.admin-rate-modal .admin-rate-active-toggle {
+    margin: 0;
+}
+
+.admin-rate-modal .admin-form-help {
+    margin-top: 14px;
 }
 
 .admin-form .portal-input:focus-visible,
@@ -1512,6 +1806,52 @@
 
     .admin-rate-value {
         flex-wrap: wrap;
+    }
+
+    .admin-rate-form-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .admin-rate-description-field,
+    .admin-rate-active-field {
+        grid-column: auto;
+    }
+
+    .admin-rate-plan-title {
+        align-items: flex-start;
+    }
+
+    .admin-rate-plan-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-rate-plan-actions .admin-button {
+        width: 100%;
+    }
+
+    .admin-rate-directory > .admin-panel-heading {
+        align-items: flex-start;
+        padding: 18px 17px 14px;
+    }
+
+    .admin-rate-modal .modal-header,
+    .admin-rate-modal .modal-footer {
+        padding: 16px;
+    }
+
+    .admin-rate-modal .modal-body {
+        padding: 17px 16px;
+    }
+
+    .admin-rate-modal .modal-footer {
+        align-items: stretch;
+        flex-direction: column-reverse;
+    }
+
+    .admin-rate-modal .modal-footer .admin-button {
+        width: 100%;
     }
 }
 
