@@ -11,8 +11,8 @@
 
             @auth('web')
                 @php($user = auth('web')->user())
-                <a class="header-btn wallet-header-link" href="{{ route('wallet') }}">
-                    <i class="bi bi-wallet2" aria-hidden="true"></i>    
+                <a class="header-btn wallet-header-link" href="{{ route('wallet') }}" aria-label="My Wallet">
+                    <i class="bi bi-wallet2" aria-hidden="true"></i>
                 </a>
                 <div class="user-menu">
                     <button
