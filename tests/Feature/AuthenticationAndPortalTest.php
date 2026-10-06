@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ExchangeRequest;
+use App\Models\ExchangeRate;
 use App\Models\User;
 use App\Support\Totp;
 use Database\Seeders\AdminSeeder;
@@ -144,6 +145,113 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertSee(route('logout'))
             ->assertSee('name="_token"', false)
             ->assertSee('data-user-menu-toggle');
+    }
+
+    public function test_homepage_restores_original_demo_rate_stats_and_conversion_rows(): void
+    {
+        $response = $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('LIVE RATE')
+            ->assertSee('1 USDT =')
+            ->assertSee('>110</span>', false)
+            ->assertSee('Fast &amp; secure USDT', false)
+            ->assertSee('Exchange Now')
+            ->assertSee('LIVE PLATFORM STATS')
+            ->assertSee('500')
+            ->assertSee('$2.5M')
+            ->assertSee('27.5Cr')
+            ->assertSee('+91 96****3461')
+            ->assertSee('$4,187')
+            ->assertSee('4,60,570')
+            ->assertSee('Best Rate')
+            ->assertSee('Freeze-Free Transactions')
+            ->assertSee('Trusted Banking Network');
+
+        $this->assertStringNotContainsString('No exchange activity is available', $response->getContent());
+        $this->assertStringNotContainsString('Exchange service unavailable', $response->getContent());
+    }
+
+    public function test_homepage_formats_live_rate_for_display_without_changing_stored_precision(): void
+    {
+        $rate = ExchangeRate::create([
+            'pair' => 'USDT_INR',
+            'rate' => '100.00000000',
+        ]);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('>100</span>', false)
+            ->assertSee('family=Poppins:wght@400;500;600;700');
+
+        $this->assertSame(100.0, (float) $rate->fresh()->rate);
+
+        $rate->update(['rate' => '100.50000000']);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('>100.5</span>', false);
+
+        $this->assertSame(100.5, (float) $rate->fresh()->rate);
+    }
+
+    public function test_exchange_page_restores_original_demo_rates_and_inert_action_cards(): void
+    {
+        $response = $this->get(route('exchange'))
+            ->assertOk()
+            ->assertSee('Your Trusted USDT Exchange Platform')
+            ->assertSee('100% Safe')
+            ->assertSee('Fast Transactions')
+            ->assertSee('Global Access')
+            ->assertSee('BALANCE')
+            ->assertSee('$0.00')
+            ->assertSee('Add Funds')
+            ->assertSee('Sell USDT')
+            ->assertSee('Get Your Funds')
+            ->assertSee('Earn Together')
+            ->assertSee('Live Rates')
+            ->assertSee('₹110')
+            ->assertSee('Above $10,000')
+            ->assertSee('₹115')
+            ->assertSee('Above $20,000')
+            ->assertSee('₹120')
+            ->assertSee('Trade ')
+            ->assertSee('Reliable');
+
+        $this->assertSame(4, substr_count($response->getContent(), 'aria-disabled="true"'));
+        $this->assertStringNotContainsString('Not available yet', $response->getContent());
+        $this->assertStringNotContainsString('No settlement available', $response->getContent());
+        $this->assertStringNotContainsString('Rates unavailable', $response->getContent());
+    }
+
+    public function test_exchange_page_formats_every_rate_card_and_uses_visible_prime_icon(): void
+    {
+        $rate = ExchangeRate::create([
+            'pair' => 'USDT_INR',
+            'rate' => '100.00000000',
+        ]);
+
+        $response = $this->get(route('exchange'))
+            ->assertOk()
+            ->assertSee('1 USDT = 100 INR')
+            ->assertSee('₹100')
+            ->assertSee('1 USDT = 115 INR')
+            ->assertSee('₹115')
+            ->assertSee('1 USDT = 120 INR')
+            ->assertSee('₹120')
+            ->assertSee('bi-diamond-fill')
+            ->assertSee('bi-gem');
+
+        $this->assertStringNotContainsString('100.00000000', $response->getContent());
+        $this->assertSame(100.0, (float) $rate->fresh()->rate);
+
+        $rate->update(['rate' => '100.50000000']);
+
+        $this->get(route('exchange'))
+            ->assertOk()
+            ->assertSee('1 USDT = 100.5 INR')
+            ->assertSee('₹100.5');
+
+        $this->assertSame(100.5, (float) $rate->fresh()->rate);
     }
 
     public function test_user_logout_returns_home_with_shared_notification_feedback(): void

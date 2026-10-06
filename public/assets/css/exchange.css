@@ -346,6 +346,13 @@ body {
     transition: .2s;
 }
 
+.action-card[type="button"] {
+    width: 100%;
+    background: transparent;
+    font: inherit;
+    cursor: default;
+}
+
     .action-card:last-child {
         border-right: none;
     }
@@ -979,6 +986,10 @@ body {
     border: 1px solid #ffd000;
     background: radial-gradient( circle, #111, #191919 );
     color: #ffd000;
+}
+
+.rate-icon i {
+    line-height: 1;
 }
 
 

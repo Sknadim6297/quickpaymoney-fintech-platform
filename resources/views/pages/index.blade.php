@@ -3,8 +3,7 @@
 @section('title', 'Quick PayMoney | Home')
 
 @section('font')
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap"
-          rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 @endsection
 
 @section('styles')
@@ -23,24 +22,31 @@
 
         <!-- LIVE RATE -->
         <section class="rate-card">
+            @php
+                $formatRate = static function ($rate): string {
+                    $rate = (string) $rate;
+
+                    return str_contains($rate, '.')
+                        ? rtrim(rtrim($rate, '0'), '.')
+                        : $rate;
+                };
+                $displayRate = (string) ($exchangeRate?->rate ?? '110');
+                $displayRate = $formatRate($displayRate);
+            @endphp
 
             <div class="live-title">
                 <span class="live-dot"></span>
-                {{ $exchangeRate ? 'CONFIGURED RATE' : 'RATE UNAVAILABLE' }}
+                LIVE RATE
             </div>
 
             <div class="rate-title">
-                @if ($exchangeRate)
-                    1 USDT = <span><i class="bi bi-currency-rupee"></i>{{ $exchangeRate->rate }}</span>
-                @else
-                    USDT ↔ INR <span>Not configured</span>
-                @endif
+                1 USDT = <span><i class="bi bi-currency-rupee"></i>{{ $displayRate }}</span>
             </div>
 
             <div class="rate-subtitle">
-                Quick PayMoney account portal
+                Fast &amp; secure USDT
                 <br>
-                Exchange service unavailable
+                to INR exchange
             </div>
 
 
@@ -65,10 +71,10 @@
 
             <!-- BUTTON -->
 
-            <button class="exchange-btn" type="button" disabled aria-disabled="true">
-                Exchange unavailable
+            <a class="exchange-btn text-decoration-none" href="{{ route('exchange') }}">
+                Exchange Now
                 <i class="bi bi-arrow-down"></i>
-            </button>
+            </a>
 
         </section>
 
@@ -83,7 +89,7 @@
 
                 <span class="green-dot"></span>
 
-                PLATFORM INFORMATION
+                LIVE PLATFORM STATS
 
                 <span class="title-line"></span>
 
@@ -103,12 +109,12 @@
                         </div>
 
                         <div class="stat-label">
-                            ACTIVE ACCOUNTS<br>
-                            NOT AVAILABLE
+                            OVERALL<br>
+                            ACTIVE CLIENTS
                         </div>
 
                         <div class="stat-value">
-                            —
+                            500
                         </div>
 
                     </div>
@@ -123,12 +129,12 @@
                         </div>
 
                         <div class="stat-label">
-                            DEPOSITS<br>
-                            NOT TRACKED
+                            OVERALL<br>
+                            DEPOSIT
                         </div>
 
                         <div class="stat-value">
-                            —
+                            $2.5M
                         </div>
 
                     </div>
@@ -143,12 +149,12 @@
                         </div>
 
                         <div class="stat-label">
-                            SETTLEMENTS<br>
-                            NOT TRACKED
+                            OVERALL<br>
+                            INR
                         </div>
 
                         <div class="stat-value green">
-                            —
+                            <i class="bi bi-currency-rupee"></i>27.5Cr
                         </div>
 
                     </div>
@@ -176,7 +182,15 @@
             </thead>
 
             <tbody>
-                <tr><td colspan="3" class="text-center">No exchange activity is available to display.</td></tr>
+                <tr><td>+91 96****3461</td><td class="usd">↓ $4,187</td><td class="inr">↑ <i class="bi bi-currency-rupee"></i>4,60,570</td></tr>
+                <tr><td>+91 91****8754</td><td class="usd">↓ $3,814</td><td class="inr">↑ <i class="bi bi-currency-rupee"></i>4,19,540</td></tr>
+                <tr><td>+91 88****2319</td><td class="usd">↓ $8,062</td><td class="inr">↑ <i class="bi bi-currency-rupee"></i>8,86,820</td></tr>
+                <tr><td>+91 90****5467</td><td class="usd">↓ $14,633</td><td class="inr">↑ <i class="bi bi-currency-rupee"></i>16,82,795</td></tr>
+                <tr><td>+91 93****7925</td><td class="usd">↓ $7,425</td><td class="inr">↑ <i class="bi bi-currency-rupee"></i>8,16,750</td></tr>
+                <tr><td>+91 95****3186</td><td class="usd">↓ $3,118</td><td class="inr">↑ <i class="bi bi-currency-rupee"></i>3,42,980</td></tr>
+                <tr><td>+91 87****6542</td><td class="usd">↓ $603</td><td class="inr">↑ <i class="bi bi-currency-rupee"></i>66,330</td></tr>
+                <tr><td>+91 98****9317</td><td class="usd">↓ $12,687</td><td class="inr">↑ <i class="bi bi-currency-rupee"></i>14,59,005</td></tr>
+                <tr><td>+91 97****2458</td><td class="usd">↓ $7,481</td><td class="inr">↑ <i class="bi bi-currency-rupee"></i>8,22,910</td></tr>
             </tbody>
 
         </table>
@@ -215,8 +229,8 @@
                     </div>
 
                     <div class="why-content">
-                        <h4>Rates unavailable</h4>
-                        <p>No approved rate is configured</p>
+                        <h4>Best Rate</h4>
+                        <p>Quick imum value</p>
                     </div>
 
                 </div>
@@ -230,8 +244,8 @@
                     </div>
 
                     <div class="why-content">
-                        <h4>Settlement disabled</h4>
-                        <p>No payment integration is connected</p>
+                        <h4>Fast Transaction</h4>
+                        <p>Quick processing</p>
                     </div>
 
                 </div>
@@ -245,8 +259,8 @@
                     </div>
 
                     <div class="why-content">
-                        <h4>Account security</h4>
-                        <p>Authentication and access controls</p>
+                        <h4>Secure</h4>
+                        <p>Protected transfer</p>
                     </div>
 
                 </div>
@@ -260,8 +274,8 @@
                     </div>
 
                     <div class="why-content">
-                        <h4>No fund custody</h4>
-                        <p>Wallets and transfers are not enabled</p>
+                        <h4>No Lien Freeze</h4>
+                        <p>Smooth withdrawals</p>
                     </div>
 
                 </div>
@@ -282,9 +296,9 @@
         </div>
 
         <div class="trust-content">
-            <h4>Transfers not enabled</h4>
+            <h4>Freeze-Free Transactions</h4>
             <p>
-                No payments or settlements are performed by this portal.
+                Fast, secure &amp; uninterrupted payments every time.
             </p>
         </div>
 
@@ -299,9 +313,9 @@
         </div>
 
         <div class="trust-content">
-            <h4>No banking integration</h4>
+            <h4>Trusted Banking Network</h4>
             <p>
-                Banking details and payment integrations are not configured.
+                Partnered with multiple banks for secure transfers.
             </p>
         </div>
 
@@ -312,7 +326,7 @@
     <div class="trust-card">
 
         <div class="trust-icon support-icon">
-            <i class="bi bi-headset"></i>
+            <i class="bi bi-whatsapp"></i>
         </div>
 
         <div class="trust-content">

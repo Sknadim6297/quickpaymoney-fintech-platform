@@ -13,6 +13,19 @@
 @endsection
 
 @section('content')
+    @php
+        $formatRate = static function ($rate): string {
+            $rate = (string) $rate;
+
+            return str_contains($rate, '.')
+                ? rtrim(rtrim($rate, '0'), '.')
+                : $rate;
+        };
+        $baseRate = $formatRate($exchangeRate?->rate ?? '110');
+        $primeRate = $formatRate('115');
+        $vipRate = $formatRate('120');
+    @endphp
+
     <div class="page-wrapper">
 
 
@@ -96,7 +109,7 @@
                 </h1>
 
                 <div class="hero-subtitle">
-                    USDT-to-INR account portal
+                    Your Trusted USDT Exchange Platform
                 </div>
 
 
@@ -107,11 +120,11 @@
                         <div>
                             <i class="bi bi-shield-fill"></i>
 
-                            <strong>Security-focused account portal</strong>
+                            <strong>100% Safe</strong>
                         </div>
 
                         <small>
-                            No funds are held in this portal
+                            Your Funds, Our Priority
                         </small>
 
                     </div>
@@ -122,11 +135,11 @@
                         <div>
                             <i class="bi bi-lightning-fill"></i>
 
-                            <strong>Settlement is not enabled</strong>
+                            <strong>Fast Transactions</strong>
                         </div>
 
                         <small>
-                            No transfers are connected
+                            Within Minutes
                         </small>
 
                     </div>
@@ -166,7 +179,13 @@
 
             <div class="balance-box">
 
-                <small>No wallet balance is tracked</small>
+                <small>
+                    BALANCE
+                </small>
+
+                <strong>
+                    $0.00
+                </strong>
 
             </div>
 
@@ -187,7 +206,7 @@
 
                 <div class="col-6 col-md-3">
 
-                    <div class="action-card" aria-disabled="true">
+                    <button class="action-card" type="button" aria-disabled="true">
 
                         <div class="action-icon">
 
@@ -200,10 +219,11 @@
                         </h3>
 
                         <div class="action-subtitle">
-                            Not available yet
+                            Add Funds
                         </div>
 
-                    </div>
+                        <i class="bi bi-chevron-right action-arrow"></i>
+                    </button>
 
                 </div>
 
@@ -212,7 +232,7 @@
 
                 <div class="col-6 col-md-3">
 
-                    <div class="action-card" aria-disabled="true">
+                    <button class="action-card" type="button" aria-disabled="true">
 
                         <div class="action-icon">
 
@@ -225,10 +245,11 @@
                         </h3>
 
                         <div class="action-subtitle">
-                            Not available yet
+                            Sell USDT
                         </div>
 
-                    </div>
+                        <i class="bi bi-chevron-right action-arrow"></i>
+                    </button>
 
                 </div>
 
@@ -237,7 +258,7 @@
 
                 <div class="col-6 col-md-3">
 
-                    <div class="action-card" aria-disabled="true">
+                    <button class="action-card" type="button" aria-disabled="true">
 
                         <div class="action-icon">
 
@@ -250,10 +271,11 @@
                         </h3>
 
                         <div class="action-subtitle">
-                            Not available yet
+                            Get Your Funds
                         </div>
 
-                    </div>
+                        <i class="bi bi-chevron-right action-arrow"></i>
+                    </button>
 
                 </div>
 
@@ -262,7 +284,7 @@
 
                 <div class="col-6 col-md-3">
 
-                    <div class="action-card" aria-disabled="true">
+                    <button class="action-card" type="button" aria-disabled="true">
 
                         <div class="action-icon">
 
@@ -275,10 +297,11 @@
                         </h3>
 
                         <div class="action-subtitle">
-                            Not available yet
+                            Earn Together
                         </div>
 
-                    </div>
+                        <i class="bi bi-chevron-right action-arrow"></i>
+                    </button>
 
                 </div>
 
@@ -311,14 +334,13 @@
 
             <i class="bi bi-lightning-fill"></i>
 
-            {{ $exchangeRate ? 'Admin-configured reference rate' : 'Rates unavailable' }}
+            Live Rates
 
             <span class="live-dot"></span>
 
         </div>
 
     </div>
-    <p class="portal-muted">Exchange requests are unavailable until approved exchange rates and business rules are configured. No funds are transferred or settled.</p>
 
 
     <!-- BASE RATE -->
@@ -336,12 +358,14 @@
 
                     Base Rate
 
-                    <span class="rate-tag">{{ $exchangeRate ? 'ADMIN MANAGED' : 'NOT CONFIGURED' }}</span>
+                    <span class="rate-tag">
+                        LIVE RATE
+                    </span>
 
                 </div>
 
                 <small>
-                    @if ($exchangeRate) 1 USDT = ₹{{ $exchangeRate->rate }} INR @else Exchange rate unavailable @endif
+                    1 USDT = {{ $baseRate }} INR
                 </small>
 
             </div>
@@ -352,12 +376,12 @@
         <div class="rate-value">
 
             <div class="rate-number">
-                {{ $exchangeRate ? '₹'.$exchangeRate->rate : '—' }}
+                ₹{{ $baseRate }}
                 <i class="bi bi-chevron-right"></i>
             </div>
 
             <small>
-                {{ $exchangeRate ? 'Reference rate · no settlement available' : 'No approved rate is configured' }}
+                1 USDT = {{ $baseRate }} INR
             </small>
 
         </div>
@@ -372,7 +396,7 @@
 
             <div class="rate-icon prime-icon">
 
-                <i class="bi bi-crown-fill"></i>
+                <i class="bi bi-diamond-fill"></i>
 
             </div>
 
@@ -383,13 +407,13 @@
                     Prime Rate
 
                     <span class="rate-tag">
-                        Rate not configured
+                        Above $10,000
                     </span>
 
                 </div>
 
                 <small>
-                    Exchange rate unavailable
+                    1 USDT = {{ $primeRate }} INR
                 </small>
 
             </div>
@@ -401,14 +425,14 @@
 
             <div class="rate-number">
 
-                —
+                ₹{{ $primeRate }}
 
                 <i class="bi bi-chevron-right"></i>
 
             </div>
 
             <small>
-                No approved rate is configured
+                1 USDT = {{ $primeRate }} INR
             </small>
 
         </div>
@@ -434,13 +458,13 @@
                     VIP Rate
 
                     <span class="rate-tag">
-                        Rate not configured
+                        Above $20,000
                     </span>
 
                 </div>
 
                 <small>
-                    Exchange rate unavailable
+                    1 USDT = {{ $vipRate }} INR
                 </small>
 
             </div>
@@ -452,14 +476,14 @@
 
             <div class="rate-number">
 
-                —
+                ₹{{ $vipRate }}
 
                 <i class="bi bi-chevron-right"></i>
 
             </div>
 
             <small>
-                No approved rate is configured
+                1 USDT = {{ $vipRate }} INR
             </small>
 
         </div>
@@ -470,15 +494,15 @@
                   <div class="trade-content">
 
             <h2>
-                Exchange service <span>unavailable</span>
+                Trade <span>USDT</span>
             </h2>
 
             <div class="trade-points">
-                <span>Rates unavailable</span>
+                <span>Secure</span>
                 <b>•</b>
-                <span>No request creation</span>
+                <span>Fast</span>
                 <b>•</b>
-                <span>No settlement</span>
+                <span>Reliable</span>
             </div>
 
         </div>
