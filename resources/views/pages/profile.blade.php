@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Quick PayMoney | Profile & Security')
+@section('title', 'Quick PayMoney | Profile')
 
 @section('font')
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -9,7 +9,6 @@
 @section('styles')
     <link href="{{ asset('assets/css/index.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/portal.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/deposit.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/style.css') }}" rel="stylesheet">
 @endsection
 
@@ -17,26 +16,69 @@
     <div class="main-wrapper">
         @include('partials.home-header')
 
-        <main class="content-area profile-area @if ($tab === 'overview') profile-area-overview @elseif ($tab === 'history') profile-area-history @endif">
-            <h1 class="portal-title">Profile &amp; Security</h1>
-            <p class="portal-muted">Manage your account, recorded deposit history, and security.</p>
+        <main class="content-area profile-area @if ($tab === 'overview') profile-area-overview @endif">
+            <h1 class="portal-title">Profile</h1>
+            <p class="portal-muted">Manage your account details and security settings.</p>
 
             <nav class="portal-tabs" aria-label="Profile sections">
-                @foreach (['overview' => 'Overview', 'history' => 'Deposit History', 'security' => 'Security'] as $key => $label)
+                @foreach (['overview' => 'Overview', 'details' => 'Profile Details'] as $key => $label)
                     <a href="{{ route('profile', ['tab' => $key]) }}" @if ($tab === $key) aria-current="page" @endif>{{ $label }}</a>
                 @endforeach
             </nav>
 
             @if ($tab === 'overview')
-                <section class="portal-card profile-card">
-                    <h2>Account information</h2>
-                    <p><strong>Email:</strong> {{ $user->email }}</p>
-                    <p><strong>Account status:</strong> <span class="portal-badge {{ $user->account_status }}">{{ ucfirst($user->account_status) }}</span></p>
-                    <p><strong>Identity verification:</strong> <span class="portal-badge {{ $user->verification_status }}">{{ ucfirst($user->verification_status) }}</span></p>
-                    <p><strong>Internal recorded USD balance:</strong> {{ \App\Support\Money::formatUsd($user->balance) }}</p>
-                    <p class="portal-muted">This recorded balance is not a custodial wallet or confirmation of USDT holdings.</p>
+                <section class="portal-card profile-card account-information-card">
+                    <h2 class="profile-section-title"><i class="bi bi-person-vcard" aria-hidden="true"></i> Account Information</h2>
+                    <div class="account-information-grid">
+                        <article class="account-information-item">
+                            <span class="account-information-icon"><i class="bi bi-envelope" aria-hidden="true"></i></span>
+                            <div><span>Email Address</span><strong>{{ $user->email }}</strong></div>
+                        </article>
+                        <article class="account-information-item">
+                            <span class="account-information-icon"><i class="bi bi-person-check" aria-hidden="true"></i></span>
+                            <div><span>Account Status</span><strong><span class="portal-badge {{ $user->account_status }}">{{ ucfirst($user->account_status) }}</span></strong></div>
+                        </article>
+                        <article class="account-information-item">
+                            <span class="account-information-icon"><i class="bi bi-shield-check" aria-hidden="true"></i></span>
+                            <div><span>Identity Verification</span><strong><span class="portal-badge {{ $user->verification_status }}">{{ ucfirst($user->verification_status) }}</span></strong></div>
+                        </article>
+                        <article class="account-information-item account-balance-item">
+                            <span class="account-information-icon"><i class="bi bi-currency-dollar" aria-hidden="true"></i></span>
+                            <div><span>Internal Recorded USD Balance</span><strong>{{ \App\Support\Money::formatUsd($user->balance) }}</strong></div>
+                        </article>
+                    </div>
+                    <p class="account-information-disclaimer">This is an internal recorded balance, not a custodial wallet or confirmation of USDT holdings.</p>
+                    <a class="account-wallet-link" href="{{ route('wallet') }}"><i class="bi bi-wallet2" aria-hidden="true"></i> View My Wallet</a>
                 </section>
 
+                <section class="portal-card profile-card profile-security-card">
+                    <h2 class="profile-section-title"><i class="bi bi-shield-lock" aria-hidden="true"></i> Security</h2>
+                    <p class="profile-security-description">Update your password to keep your customer account secure.</p>
+                    <form class="profile-security-form" method="POST" action="{{ route('password.change') }}">
+                        @csrf
+                        @method('PUT')
+                        <div class="profile-security-fields">
+                            <div>
+                                <label for="current_password">Current password</label>
+                                <input class="profile-form-control" type="password" id="current_password" name="current_password" autocomplete="current-password" required>
+                                @error('current_password')<span class="profile-field-error">{{ $message }}</span>@enderror
+                            </div>
+                            <div>
+                                <label for="password">New password</label>
+                                <input class="profile-form-control" type="password" id="password" name="password" minlength="12" autocomplete="new-password" required>
+                                @error('password')<span class="profile-field-error">{{ $message }}</span>@enderror
+                            </div>
+                            <div>
+                                <label for="password_confirmation">Confirm new password</label>
+                                <input class="profile-form-control" type="password" id="password_confirmation" name="password_confirmation" minlength="12" autocomplete="new-password" required>
+                            </div>
+                        </div>
+                        <div class="profile-form-actions">
+                            <button class="profile-save-button" type="submit"><i class="bi bi-lock" aria-hidden="true"></i> Change password</button>
+                        </div>
+                    </form>
+                </section>
+            @else
                 <section class="portal-card profile-card profile-details-card">
                     <h2 class="profile-section-title"><i class="bi bi-person-circle" aria-hidden="true"></i> Personal Information</h2>
                     <form class="profile-details-form" method="POST" action="{{ route('profile.update') }}" autocomplete="on">
@@ -70,9 +112,7 @@
                                 @error('gender')<span class="profile-field-error">{{ $message }}</span>@enderror
                             </div>
                         </div>
-                        <div class="profile-form-actions">
-                            <button class="profile-save-button" type="submit"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Save Details</button>
-                        </div>
+                        <div class="profile-form-actions"><button class="profile-save-button" type="submit"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Save Details</button></div>
                     </form>
                 </section>
 
@@ -125,9 +165,7 @@
                                 @error('bank_current_password')<span class="profile-field-error">{{ $message }}</span>@enderror
                             </div>
                         </div>
-                        <div class="profile-form-actions">
-                            <button class="profile-save-button" type="submit"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Save Details</button>
-                        </div>
+                        <div class="profile-form-actions"><button class="profile-save-button" type="submit"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Save Details</button></div>
                     </form>
                 </section>
 
@@ -150,76 +188,7 @@
                                 @error('wallet_current_password')<span class="profile-field-error">{{ $message }}</span>@enderror
                             </div>
                         </div>
-                        <div class="profile-form-actions">
-                            <button class="profile-save-button" type="submit"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Save Details</button>
-                        </div>
-                    </form>
-                </section>
-            @elseif ($tab === 'history')
-                <section class="portal-card profile-card deposit-history-card">
-                    <h2 class="deposit-history-title"><i class="bi bi-receipt" aria-hidden="true"></i> Deposit history</h2>
-                    <p class="portal-muted">Requests are shown for your account only. Pending requests do not change your recorded balance.</p>
-                    <form class="deposit-history-filters" method="GET" action="{{ route('profile') }}" role="search">
-                        <input type="hidden" name="tab" value="history">
-                        <div class="deposit-history-search">
-                            <label class="visually-hidden" for="deposit-history-search">Search Reference ID or Transaction ID</label>
-                            <input class="portal-input deposit-history-control" id="deposit-history-search" type="search" name="search" value="{{ request('search') }}" maxlength="150" placeholder="Search Reference ID or Transaction ID">
-                        </div>
-                        <div class="deposit-history-status">
-                            <label class="visually-hidden" for="deposit-history-status">Filter by deposit status</label>
-                            <select class="portal-input deposit-history-control" id="deposit-history-status" name="status">
-                                <option value="">All statuses</option>
-                                @foreach (\App\Models\Deposit::STATUSES as $status)
-                                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <button class="deposit-history-button" type="submit"><i class="bi bi-search" aria-hidden="true"></i> Search</button>
-                        @if (request()->hasAny(['search', 'status']))
-                            <a class="deposit-history-button secondary deposit-history-clear" href="{{ route('profile', ['tab' => 'history']) }}">Clear</a>
-                        @endif
-                    </form>
-                    @if ($deposits->isEmpty())
-                        <div class="deposit-history-empty">
-                            <i class="bi bi-receipt" aria-hidden="true"></i>
-                            <strong>{{ request()->hasAny(['search', 'status']) ? 'No matching deposit requests' : 'No deposit requests yet' }}</strong>
-                            <p>{{ request()->hasAny(['search', 'status']) ? 'Try changing or clearing your search and filters.' : 'Your submitted requests will appear here.' }}</p>
-                        </div>
-                    @else
-                        <div class="portal-table-wrap deposit-history-table-wrap">
-                            <table class="portal-table">
-                                <thead><tr><th scope="col">Reference ID</th><th scope="col">Amount (USD)</th><th scope="col">Transaction ID</th><th scope="col">Submitted Date</th><th scope="col">Status</th><th scope="col">Rejection Reason</th><th scope="col">Details</th></tr></thead>
-                                <tbody>
-                                @foreach ($deposits as $deposit)
-                                    <tr>
-                                        <td>{{ $deposit->deposit_id }}</td>
-                                        <td>{{ \App\Support\Money::formatUsd($deposit->amount) }}</td>
-                                        <td>{{ $deposit->transaction_reference }}</td>
-                                        <td><time datetime="{{ $deposit->submitted_at->toIso8601String() }}">{{ $deposit->submitted_at->format('M j, Y · H:i') }}</time></td>
-                                        <td><span class="portal-badge {{ $deposit->status }}">{{ ucfirst($deposit->status) }}</span></td>
-                                        <td>{{ $deposit->rejection_reason ?: '—' }}</td>
-                                        <td><a class="deposit-history-button deposit-history-detail-link" href="{{ route('deposits.show', $deposit) }}">Details <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></td>
-                                    </tr>
-                                @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        @if ($deposits->hasPages())<div class="deposit-history-pagination">{{ $deposits->links() }}</div>@endif
-                    @endif
-                </section>
-            @else
-                <section class="portal-card profile-card">
-                    <h2>Change password</h2>
-                    <form class="portal-form" method="POST" action="{{ route('password.change') }}">
-                        @csrf
-                        @method('PUT')
-                        <label for="current_password">Current password</label>
-                        <input class="portal-input" type="password" id="current_password" name="current_password" autocomplete="current-password" required>
-                        <label for="password">New password</label>
-                        <input class="portal-input" type="password" id="password" name="password" minlength="12" autocomplete="new-password" required>
-                        <label for="password_confirmation">Confirm new password</label>
-                        <input class="portal-input" type="password" id="password_confirmation" name="password_confirmation" minlength="12" autocomplete="new-password" required>
-                        <button class="portal-button" type="submit">Change password</button>
+                        <div class="profile-form-actions"><button class="profile-save-button" type="submit"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Save Details</button></div>
                     </form>
                 </section>
             @endif

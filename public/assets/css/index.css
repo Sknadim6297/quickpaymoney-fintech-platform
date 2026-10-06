@@ -105,6 +105,12 @@ body {
     position: relative;
 }
 
+.wallet-header-link {
+    gap: 7px;
+    padding: 0 13px;
+    font-size: 12px;
+}
+
 .user-menu-toggle {
     width: 40px;
     padding: 0;
@@ -577,6 +583,16 @@ body {
 
         .header-actions .header-contact {
             display: none;
+        }
+
+        .wallet-header-link {
+            gap: 5px;
+            padding: 0 8px !important;
+            font-size: 11px !important;
+        }
+
+        .wallet-header-link i {
+            font-size: 15px !important;
         }
 
         .header-actions .user-menu-toggle {

@@ -38,6 +38,7 @@ class ExchangeRateManagementTest extends TestCase
             'plan_key' => 'vip',
             'rate' => '120.00000000',
             'minimum_amount' => '20000.00',
+            'maximum_amount' => null,
         ]);
 
         $this->actingAs($this->admin(), 'admin')->withSession(['admin_2fa_verified' => true])
@@ -59,12 +60,26 @@ class ExchangeRateManagementTest extends TestCase
             ->assertSee('VIP Rate')
             ->assertSee('Add New Rate Plan')
             ->assertSee('Rate plans')
-            ->assertSee('Minimum USD');
+            ->assertSee('From (USDT)')
+            ->assertSee('Upto (USDT)');
+
+        $vip = ExchangeRate::where('plan_key', 'vip')->firstOrFail();
+        $this->put(route('admin.rates.plans.update', $vip), [
+            'name' => $vip->name,
+            'rate' => (string) $vip->rate,
+            'minimum_amount' => (string) $vip->minimum_amount,
+            'maximum_amount' => '49999.99',
+            'label' => $vip->label,
+            'description' => $vip->description,
+            'icon' => $vip->icon,
+            'is_active' => '1',
+        ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->post(route('admin.rates.store'), [
             'name' => 'Institutional Rate',
             'rate' => '127.50000000',
             'minimum_amount' => '50000.00',
+            'maximum_amount' => '59999.99',
             'label' => 'Institutional tier',
             'description' => 'A custom reference tier.',
             'icon' => 'bi-stars',
@@ -86,6 +101,7 @@ class ExchangeRateManagementTest extends TestCase
             'name' => 'Institutional Rate',
             'rate' => '129.75000000',
             'minimum_amount' => '60000.00',
+            'maximum_amount' => null,
             'label' => 'Updated institutional tier',
             'description' => 'Updated custom rate description.',
             'icon' => 'bi-award',
@@ -125,6 +141,7 @@ class ExchangeRateManagementTest extends TestCase
             'name' => $prime->name,
             'rate' => (string) $prime->rate,
             'minimum_amount' => (string) $prime->minimum_amount,
+            'maximum_amount' => (string) $prime->maximum_amount,
             'label' => $prime->label,
             'description' => $prime->description,
             'icon' => $prime->icon,
@@ -139,6 +156,7 @@ class ExchangeRateManagementTest extends TestCase
             'name' => 'Conflicting plan',
             'rate' => '125',
             'minimum_amount' => '20000.00',
+            'maximum_amount' => '25000.00',
             'label' => '',
             'description' => '',
             'icon' => 'bi-star',
@@ -158,6 +176,7 @@ class ExchangeRateManagementTest extends TestCase
             'name' => 'Base Reference Rate',
             'rate' => '102.25000000',
             'minimum_amount' => '0',
+            'maximum_amount' => '9999.99',
             'label' => 'MARKET REFERENCE',
             'description' => 'Updated base reference description.',
             'icon' => 'bi-bank',
@@ -179,6 +198,7 @@ class ExchangeRateManagementTest extends TestCase
                 'name' => 'Base Reference Rate',
                 'rate' => '102.25',
                 'minimum_amount' => '1',
+                'maximum_amount' => '9999.99',
                 'label' => 'MARKET REFERENCE',
                 'description' => '',
                 'icon' => 'bi-bank',
@@ -248,6 +268,104 @@ class ExchangeRateManagementTest extends TestCase
         $this->post(route('admin.rates.store'), [])->assertRedirect(route('admin.login'));
         $this->put(route('admin.rates.plans.update', $plan), [])->assertRedirect(route('admin.login'));
         $this->patch(route('admin.rates.plans.status', $plan))->assertRedirect(route('admin.login'));
+    }
+
+    public function test_active_rate_slab_ranges_cannot_overlap_or_be_activated_when_conflicting(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin, 'admin')->withSession(['admin_2fa_verified' => true]);
+
+        $this->from(route('admin.rates.edit'))->post(route('admin.rates.store'), [
+            'name' => 'Overlapping Active Plan',
+            'rate' => '110',
+            'minimum_amount' => '5000',
+            'maximum_amount' => '15000',
+            'label' => '',
+            'description' => '',
+            'icon' => 'bi-star',
+            'is_active' => '1',
+        ])->assertSessionHasErrors('maximum_amount');
+        $this->assertDatabaseMissing('exchange_rates', ['name' => 'Overlapping Active Plan']);
+
+        $this->post(route('admin.rates.store'), [
+            'name' => 'Inactive Overlapping Plan',
+            'rate' => '110',
+            'minimum_amount' => '5000',
+            'maximum_amount' => '15000',
+            'label' => '',
+            'description' => '',
+            'icon' => 'bi-star',
+            'is_active' => '0',
+        ])->assertRedirect()->assertSessionHas('status', 'Exchange rate plan created.');
+
+        $inactivePlan = ExchangeRate::where('name', 'Inactive Overlapping Plan')->firstOrFail();
+        $this->from(route('admin.rates.edit'))
+            ->patch(route('admin.rates.plans.status', $inactivePlan))
+            ->assertSessionHasErrors('maximum_amount');
+        $this->assertFalse($inactivePlan->fresh()->is_active);
+
+        $this->from(route('admin.rates.edit'))->post(route('admin.rates.store'), [
+            'name' => 'Invalid Range Plan',
+            'rate' => '110',
+            'minimum_amount' => '15000',
+            'maximum_amount' => '10000',
+            'label' => '',
+            'description' => '',
+            'icon' => 'bi-star',
+            'is_active' => '0',
+        ])->assertSessionHasErrors('maximum_amount');
+    }
+
+    public function test_withdrawal_quote_matches_inclusive_boundaries_and_uses_exact_decimal_math(): void
+    {
+        $this->get(route('exchange'))
+            ->assertOk()
+            ->assertSee('USDT to INR estimate')
+            ->assertSee('Enter USDT Amount')
+            ->assertSee('subject to verification and applicable fees')
+            ->assertSee('0 – 9,999.99 USDT')
+            ->assertSee('10,000 – 19,999.99 USDT')
+            ->assertSee('20,000+ USDT')
+            ->assertSee('aria-disabled="true"', false);
+
+        $this->getJson(route('withdrawal.quote', ['amount' => '9999.99']))
+            ->assertOk()
+            ->assertJsonPath('plan', 'Base Rate')
+            ->assertJsonPath('rate', '100')
+            ->assertJsonPath('estimated_inr', '999999.00');
+
+        $this->getJson(route('withdrawal.quote', ['amount' => '10000']))
+            ->assertOk()
+            ->assertJsonPath('plan', 'Prime Rate')
+            ->assertJsonPath('estimated_inr', '1150000.00');
+
+        $this->getJson(route('withdrawal.quote', ['amount' => '19999.99']))
+            ->assertOk()
+            ->assertJsonPath('plan', 'Prime Rate')
+            ->assertJsonPath('estimated_inr', '2299998.85');
+
+        $this->getJson(route('withdrawal.quote', ['amount' => '20000']))
+            ->assertOk()
+            ->assertJsonPath('plan', 'VIP Rate')
+            ->assertJsonPath('estimated_inr', '2400000.00');
+
+        $this->getJson(route('withdrawal.quote', ['amount' => '15000']))
+            ->assertOk()
+            ->assertJsonPath('estimated_inr', '1725000.00');
+
+        $this->getJson(route('withdrawal.quote', ['amount' => '0.00000001']))
+            ->assertOk()
+            ->assertJsonPath('estimated_inr', '0.00');
+
+        ExchangeRate::where('plan_key', 'base')->update(['rate' => '100.12345678']);
+        $this->getJson(route('withdrawal.quote', ['amount' => '1.23456789']))
+            ->assertOk()
+            ->assertJsonPath('estimated_inr', '123.61');
+
+        ExchangeRate::where('plan_key', 'prime')->update(['is_active' => false]);
+        $this->getJson(route('withdrawal.quote', ['amount' => '15000']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('amount');
     }
 
     public function test_rate_plan_search_filters_and_pagination_preserve_query_state(): void

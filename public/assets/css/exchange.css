@@ -2523,3 +2523,125 @@ body {
         transform: translateY(-4px);
     }
 }
+.withdrawal-calculator {
+    margin: 24px 0;
+    padding: 22px;
+    border: 1px solid rgba(255, 208, 0, .3);
+    border-radius: 18px;
+    background: linear-gradient(145deg, #151515, #0e0e0e);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, .2);
+}
+
+.withdrawal-calculator-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.withdrawal-calculator-icon {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 208, 0, .3);
+    border-radius: 12px;
+    background: rgba(255, 208, 0, .08);
+    color: #ffd000;
+    font-size: 19px;
+}
+
+.withdrawal-calculator-heading h2 {
+    margin: 0 0 3px;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.withdrawal-calculator-heading p,
+.withdrawal-calculator-disclaimer {
+    margin: 0;
+    color: #a7a7a7;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.withdrawal-calculator > label {
+    display: block;
+    margin-bottom: 7px;
+    color: #ddd;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.withdrawal-calculator-input {
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 13px;
+    border: 1px solid #393939;
+    border-radius: 10px;
+    outline: none;
+    background: #1b1b1b;
+    color: #fff;
+    font: inherit;
+}
+
+.withdrawal-calculator-input:focus {
+    border-color: #ffd000;
+    box-shadow: 0 0 0 3px rgba(255, 208, 0, .12);
+}
+
+.withdrawal-calculator-error {
+    margin: 10px 0 0;
+    color: #ff999f;
+    font-size: 12px;
+}
+
+.withdrawal-calculator-results {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 16px 0 0;
+}
+
+.withdrawal-calculator-results > div {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #303030;
+    border-radius: 10px;
+    background: #101010;
+}
+
+.withdrawal-calculator-results dt {
+    margin-bottom: 5px;
+    color: #999;
+    font-size: 11px;
+}
+
+.withdrawal-calculator-results dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.withdrawal-calculator-results .withdrawal-estimate dd {
+    color: #ffd000;
+    font-size: 17px;
+}
+
+.withdrawal-calculator-disclaimer {
+    margin-top: 14px;
+}
+
+@media (max-width: 520px) {
+    .withdrawal-calculator {
+        padding: 16px;
+    }
+
+    .withdrawal-calculator-results {
+        grid-template-columns: 1fr;
+    }
+}

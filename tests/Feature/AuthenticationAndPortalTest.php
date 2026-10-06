@@ -81,18 +81,20 @@ class AuthenticationAndPortalTest extends TestCase
 
         $this->actingAs($user, 'web')->get(route('profile'))
             ->assertOk()
-            ->assertSee('Profile & Security')
-            ->assertSee(route('profile', ['tab' => 'history']))
-            ->assertSee(route('profile', ['tab' => 'security']))
-            ->assertSee('Save Details')
-            ->assertDontSee('Change password')
+            ->assertSee('Account Information')
+            ->assertSee(route('profile', ['tab' => 'details']))
+            ->assertSee(route('wallet'))
+            ->assertSee('Change password')
+            ->assertDontSee('Deposit History')
             ->assertDontSee('Account overview')
             ->assertDontSee('Exchange and transaction history')
             ->assertDontSee('98765.43210000');
 
-        $this->actingAs($user, 'web')->get(route('profile', ['tab' => 'security']))
+        $this->actingAs($user, 'web')->get(route('profile', ['tab' => 'details']))
             ->assertOk()
-            ->assertSee('Change password');
+            ->assertSee('Profile Details')
+            ->assertSee('Bank Details')
+            ->assertDontSee('Change password');
 
         $unverified = User::factory()->unverified()->create()->fresh();
         $this->actingAs($unverified, 'web')->get(route('profile'))
@@ -141,7 +143,7 @@ class AuthenticationAndPortalTest extends TestCase
         $user = User::factory()->create(['password' => 'CurrentStrong!Password123']);
 
         $this->actingAs($user, 'web')
-            ->get(route('profile'))
+            ->get(route('profile', ['tab' => 'details']))
             ->assertOk()
             ->assertSee('Personal Information')
             ->assertSee('Bank Details')
@@ -222,6 +224,9 @@ class AuthenticationAndPortalTest extends TestCase
         $this->assertStringNotContainsString($walletDetails['usdt_wallet_address'], $user->getRawOriginal('usdt_wallet_address'));
 
         $this->get(route('profile'))
+            ->assertOk();
+
+        $this->get(route('profile', ['tab' => 'details']))
             ->assertOk()
             ->assertSee('Morgan Example')
             ->assertSee('Example Bank')
@@ -245,9 +250,9 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertOk()
             ->assertSee('Account menu for Morgan Example')
             ->assertSee('>Profile</a>', false)
-            ->assertSee('>History</a>', false)
+            ->assertSee('My Wallet')
             ->assertSee(route('profile'))
-            ->assertSee(route('profile', ['tab' => 'history']))
+            ->assertSee(route('wallet'))
             ->assertSee(route('logout'))
             ->assertSee('name="_token"', false)
             ->assertSee('data-user-menu-toggle');
@@ -314,9 +319,9 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertSee('Earn Together')
             ->assertSee('Live Rates')
             ->assertSee('₹100')
-            ->assertSee('Above $10,000')
+            ->assertSee('10,000 – 19,999.99 USDT')
             ->assertSee('₹115')
-            ->assertSee('Above $20,000')
+            ->assertSee('20,000+ USDT')
             ->assertSee('₹120')
             ->assertSee('Trade ')
             ->assertSee('Reliable');

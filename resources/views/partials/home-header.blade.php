@@ -11,6 +11,9 @@
 
             @auth('web')
                 @php($user = auth('web')->user())
+                <a class="header-btn wallet-header-link" href="{{ route('wallet') }}">
+                    <i class="bi bi-wallet2" aria-hidden="true"></i>    
+                </a>
                 <div class="user-menu">
                     <button
                         class="header-btn user-menu-toggle"
@@ -26,7 +29,7 @@
                     <div class="user-menu-panel" id="user-menu-panel" role="menu" hidden>
                         <p class="user-menu-name">{{ $user->name }}</p>
                         <a href="{{ route('profile') }}" role="menuitem">Profile</a>
-                        <a href="{{ route('profile', ['tab' => 'history']) }}" role="menuitem">History</a>
+                        <a href="{{ route('wallet') }}" role="menuitem"><i class="bi bi-wallet2" aria-hidden="true"></i> My Wallet</a>
                         <form method="POST" action="{{ route('logout') }}" data-confirm="You will be signed out of your account." data-confirm-title="Sign out?">
                             @csrf
                             <button type="submit" role="menuitem">Logout</button>

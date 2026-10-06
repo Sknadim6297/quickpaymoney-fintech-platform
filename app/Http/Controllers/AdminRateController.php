@@ -71,6 +71,8 @@ class AdminRateController extends Controller
         $admin = $request->user('admin');
 
         $this->savePlanTransaction(function () use ($request, $validated, $admin): void {
+            ExchangeRate::query()->orderBy('id')->lockForUpdate()->get(['id']);
+            $this->assertNoActiveOverlap($validated);
             $this->assertMinimumAvailable($validated['minimum_amount']);
             $plan = ExchangeRate::create([
                 ...$validated,
@@ -124,7 +126,9 @@ class AdminRateController extends Controller
         $admin = $request->user('admin');
 
         $this->savePlanTransaction(function () use ($request, $validated, $admin, $exchangeRate): void {
+            ExchangeRate::query()->orderBy('id')->lockForUpdate()->get(['id']);
             $plan = ExchangeRate::query()->lockForUpdate()->findOrFail($exchangeRate->id);
+            $this->assertNoActiveOverlap($validated, $plan->id);
             $this->assertMinimumAvailable($validated['minimum_amount'], $plan->id);
             $before = $this->planSnapshot($plan);
             $plan->fill([
@@ -142,7 +146,15 @@ class AdminRateController extends Controller
         $admin = $request->user('admin');
 
         DB::transaction(function () use ($request, $admin, $exchangeRate): void {
+            ExchangeRate::query()->orderBy('id')->lockForUpdate()->get(['id']);
             $plan = ExchangeRate::query()->lockForUpdate()->findOrFail($exchangeRate->id);
+            if (! $plan->is_active) {
+                $this->assertNoActiveOverlap([
+                    'minimum_amount' => (string) $plan->minimum_amount,
+                    'maximum_amount' => $plan->maximum_amount === null ? null : (string) $plan->maximum_amount,
+                    'is_active' => true,
+                ], $plan->id);
+            }
             $before = $this->planSnapshot($plan);
             $plan->forceFill([
                 'is_active' => ! $plan->is_active,
@@ -192,6 +204,7 @@ class AdminRateController extends Controller
                 'regex:/^\d{1,18}(?:\.\d{1,2})?$/',
                 Rule::unique('exchange_rates', 'minimum_amount')->ignore($plan?->id),
             ],
+            'maximum_amount' => ['nullable', 'string', 'regex:/^\d{1,18}(?:\.\d{1,2})?$/'],
             'label' => ['nullable', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
             'icon' => ['required', 'string', Rule::in(self::ICONS)],
@@ -199,6 +212,19 @@ class AdminRateController extends Controller
         ]);
 
         $validated['minimum_amount'] = $this->normalizeMinimum($validated['minimum_amount']);
+        $maximum = $request->input('maximum_amount', $plan?->maximum_amount);
+        $validated['maximum_amount'] = $maximum === null || $maximum === ''
+            ? null
+            : $this->normalizeMinimum($maximum);
+
+        if (
+            $validated['maximum_amount'] !== null
+            && \App\Support\Decimal::compare($validated['maximum_amount'], $validated['minimum_amount'], 2) < 0
+        ) {
+            throw ValidationException::withMessages([
+                'maximum_amount' => 'The maximum amount must be greater than or equal to the minimum amount.',
+            ]);
+        }
 
         if ($plan?->plan_key === 'base' && $validated['minimum_amount'] !== '0.00') {
             throw ValidationException::withMessages([
@@ -207,6 +233,39 @@ class AdminRateController extends Controller
         }
 
         return $validated;
+    }
+
+    private function assertNoActiveOverlap(array $candidate, ?int $ignoreId = null): void
+    {
+        if (! $candidate['is_active']) {
+            return;
+        }
+
+        $plans = ExchangeRate::query()
+            ->where('is_active', true)
+            ->when($ignoreId !== null, fn ($query) => $query->where('id', '<>', $ignoreId))
+            ->get(['minimum_amount', 'maximum_amount']);
+
+        foreach ($plans as $plan) {
+            $candidateStartsBeforePlanEnds = $candidate['maximum_amount'] === null
+                || \App\Support\Decimal::compare(
+                    (string) $plan->minimum_amount,
+                    $candidate['maximum_amount'],
+                    2,
+                ) <= 0;
+            $planStartsBeforeCandidateEnds = $plan->maximum_amount === null
+                || \App\Support\Decimal::compare(
+                    (string) $plan->maximum_amount,
+                    $candidate['minimum_amount'],
+                    2,
+                ) >= 0;
+
+            if ($candidateStartsBeforePlanEnds && $planStartsBeforeCandidateEnds) {
+                throw ValidationException::withMessages([
+                    'maximum_amount' => 'Active rate slabs cannot overlap.',
+                ]);
+            }
+        }
     }
 
     private function assertMinimumAvailable(string $minimum, ?int $ignoreId = null): void
@@ -252,6 +311,15 @@ class AdminRateController extends Controller
             if ($minimumQuery->exists()) {
                 $errors['minimum_amount'] = 'Each rate plan must have a unique minimum amount.';
             }
+            if (isset($validated['maximum_amount'])) {
+                $maximumQuery = ExchangeRate::query()->where('minimum_amount', $validated['maximum_amount']);
+                if ($ignoreId !== null) {
+                    $maximumQuery->where('id', '<>', $ignoreId);
+                }
+                if ($maximumQuery->exists()) {
+                    $errors['maximum_amount'] = 'A rate slab cannot end at another plan’s starting amount.';
+                }
+            }
             if ($errors === []) {
                 throw $exception;
             }
@@ -288,6 +356,7 @@ class AdminRateController extends Controller
             'name' => $plan->name,
             'rate' => $plan->rate,
             'minimum_amount' => $plan->minimum_amount,
+            'maximum_amount' => $plan->maximum_amount,
             'label' => $plan->label,
             'description' => $plan->description,
             'icon' => $plan->icon,

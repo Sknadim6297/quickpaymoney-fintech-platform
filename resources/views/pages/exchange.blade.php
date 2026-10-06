@@ -291,9 +291,9 @@
                         @if ($plan->label)
                             <span class="rate-tag">{{ $plan->label }}</span>
                         @endif
-                        @if ($plan->formattedMinimumAmount() !== '0')
-                            <span class="rate-tag">Above ${{ $plan->formattedMinimumAmount() }}</span>
-                        @endif
+                        <span class="rate-tag">
+                            {{ $plan->formattedMinimumAmount() }}@if ($plan->formattedMaximumAmount() !== null) – {{ $plan->formattedMaximumAmount() }}@else+@endif USDT
+                        </span>
                     </div>
                     <small>1 USDT = {{ $plan->formattedRate() }} INR</small>
                     @if ($plan->description)
@@ -312,6 +312,26 @@
     @empty
         <article class="rate-card"><div class="rate-info"><div class="rate-details"><div class="rate-name">Exchange rates are temporarily unavailable.</div></div></div></article>
     @endforelse
+
+    <section class="withdrawal-calculator" aria-labelledby="withdrawal-calculator-title" data-quote-url="{{ route('withdrawal.quote') }}">
+        <div class="withdrawal-calculator-heading">
+            <span class="withdrawal-calculator-icon"><i class="bi bi-calculator" aria-hidden="true"></i></span>
+            <div>
+                <h2 id="withdrawal-calculator-title">USDT to INR estimate</h2>
+                <p>Choose an amount to see the applicable rate slab.</p>
+            </div>
+        </div>
+        <label for="withdrawal-amount">Enter USDT Amount</label>
+        <input class="withdrawal-calculator-input" id="withdrawal-amount" type="number" min="0.00000001" step="0.00000001" inputmode="decimal" autocomplete="off" placeholder="e.g. 5000">
+        <p class="withdrawal-calculator-error" id="withdrawal-calculator-error" role="status" hidden></p>
+        <dl class="withdrawal-calculator-results" id="withdrawal-calculator-results" aria-live="polite" hidden>
+            <div><dt>Applicable Rate Plan</dt><dd id="withdrawal-plan-name">—</dd></div>
+            <div><dt>INR per USDT</dt><dd id="withdrawal-rate">—</dd></div>
+            <div><dt>USDT Amount</dt><dd id="withdrawal-amount-value">—</dd></div>
+            <div class="withdrawal-estimate"><dt>Estimated INR Amount</dt><dd id="withdrawal-estimated-inr">—</dd></div>
+        </dl>
+        <p class="withdrawal-calculator-disclaimer">Informational estimate only, subject to verification and applicable fees. Actual withdrawal requests and transfers are not available.</p>
+    </section>
 
     <section class="trade-usdt-banner">
                   <div class="trade-content">
@@ -374,4 +394,74 @@
         @include('partials.bottom-nav', ['active' => 'exchange', 'variant' => 'exchange'])
 
     </div>
+@endsection
+
+@section('scripts')
+    <script>
+        (() => {
+            const calculator = document.querySelector('.withdrawal-calculator');
+            const amountInput = document.getElementById('withdrawal-amount');
+            const results = document.getElementById('withdrawal-calculator-results');
+            const error = document.getElementById('withdrawal-calculator-error');
+            if (!calculator || !amountInput || !results || !error) return;
+
+            const output = {
+                plan: document.getElementById('withdrawal-plan-name'),
+                rate: document.getElementById('withdrawal-rate'),
+                amount: document.getElementById('withdrawal-amount-value'),
+                inr: document.getElementById('withdrawal-estimated-inr'),
+            };
+            let pending;
+            let controller;
+            let sequence = 0;
+
+            const reset = () => {
+                results.hidden = true;
+                error.hidden = true;
+                error.textContent = '';
+            };
+            const formatInr = (value) => {
+                const [whole, fraction] = value.split('.');
+                return `₹${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${fraction ?? '00'}`;
+            };
+
+            amountInput.addEventListener('input', () => {
+                clearTimeout(pending);
+                controller?.abort();
+                reset();
+
+                if (!amountInput.value) return;
+
+                pending = setTimeout(async () => {
+                    const requestSequence = ++sequence;
+                    controller = new AbortController();
+                    const url = new URL(calculator.dataset.quoteUrl, window.location.href);
+                    url.searchParams.set('amount', amountInput.value);
+
+                    try {
+                        const response = await fetch(url, {
+                            headers: { Accept: 'application/json' },
+                            signal: controller.signal,
+                        });
+                        const data = await response.json();
+                        if (requestSequence !== sequence) return;
+
+                        if (!response.ok) {
+                            throw new Error(data.errors?.amount?.[0] ?? 'Unable to calculate this estimate.');
+                        }
+
+                        output.plan.textContent = data.plan;
+                        output.rate.textContent = `₹${data.rate}`;
+                        output.amount.textContent = `${data.amount} USDT`;
+                        output.inr.textContent = formatInr(data.estimated_inr);
+                        results.hidden = false;
+                    } catch (exception) {
+                        if (exception.name === 'AbortError' || requestSequence !== sequence) return;
+                        error.textContent = exception.message;
+                        error.hidden = false;
+                    }
+                }, 180);
+            });
+        })();
+    </script>
 @endsection

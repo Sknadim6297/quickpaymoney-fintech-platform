@@ -58,7 +58,8 @@
                             <th scope="col">ID</th>
                             <th scope="col">Plan name</th>
                             <th scope="col">INR per USDT</th>
-                            <th scope="col">Minimum USD</th>
+                            <th scope="col">From (USDT)</th>
+                            <th scope="col">Upto (USDT)</th>
                             <th scope="col">Rate label</th>
                             <th scope="col">Status</th>
                             <th scope="col">Type</th>
@@ -74,7 +75,8 @@
                                     @if ($plan->description)<small class="admin-rate-table-description">{{ $plan->description }}</small>@endif
                                 </td>
                                 <td><strong>₹{{ $plan->formattedRate() }}</strong></td>
-                                <td>${{ $plan->formattedMinimumAmount() }}</td>
+                                <td>{{ $plan->formattedMinimumAmount() }}</td>
+                                <td>{{ $plan->formattedMaximumAmount() ?? 'No limit' }}</td>
                                 <td>{{ $plan->label ?: '—' }}</td>
                                 <td>
                                     <span class="portal-badge {{ $plan->is_active ? 'active' : 'inactive' }}"><span class="admin-badge-dot"></span>{{ $plan->is_active ? 'Active' : 'Inactive' }}</span>
@@ -95,6 +97,7 @@
                                             data-name="{{ $plan->name }}"
                                             data-rate="{{ $plan->formattedRate() }}"
                                             data-minimum="{{ $plan->formattedMinimumAmount() }}"
+                                            data-maximum="{{ $plan->formattedMaximumAmount() }}"
                                             data-label="{{ $plan->label }}"
                                             data-icon="{{ $plan->icon }}"
                                             data-description="{{ $plan->description }}"
@@ -194,9 +197,14 @@
                                 @error('rate')<span class="admin-field-error">{{ $message }}</span>@enderror
                             </div>
                             <div>
-                                <label for="rate-plan-minimum">Minimum USD Amount</label>
+                                <label for="rate-plan-minimum">Minimum Amount (USDT) — From</label>
                                 <input class="portal-input" id="rate-plan-minimum" name="minimum_amount" inputmode="decimal" value="{{ old('minimum_amount') }}" required>
                                 @error('minimum_amount')<span class="admin-field-error">{{ $message }}</span>@enderror
+                            </div>
+                            <div>
+                                <label for="rate-plan-maximum">Maximum Amount (USDT) — Upto</label>
+                                <input class="portal-input" id="rate-plan-maximum" name="maximum_amount" inputmode="decimal" value="{{ old('maximum_amount') }}" placeholder="Leave blank for no limit">
+                                @error('maximum_amount')<span class="admin-field-error">{{ $message }}</span>@enderror
                             </div>
                             <div>
                                 <label for="rate-plan-label">Rate Label</label>
@@ -226,7 +234,7 @@
                                 @error('is_active')<span class="admin-field-error">{{ $message }}</span>@enderror
                             </div>
                         </div>
-                        <p class="admin-form-help">Rate: positive, up to 8 decimal places. Minimum amount: non-negative, up to 2 decimal places. Base Rate minimum must remain $0.</p>
+                        <p class="admin-form-help">Rate: positive, up to 8 decimal places. Slab boundaries: non-negative, up to 2 decimal places. Active slabs cannot overlap. Leave Upto blank for no limit. Base Rate must start at 0.</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="admin-button admin-button-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -255,6 +263,7 @@
                 name: document.getElementById('rate-plan-name'),
                 rate: document.getElementById('rate-plan-rate'),
                 minimum: document.getElementById('rate-plan-minimum'),
+                maximum: document.getElementById('rate-plan-maximum'),
                 label: document.getElementById('rate-plan-label'),
                 icon: document.getElementById('rate-plan-icon'),
                 description: document.getElementById('rate-plan-description'),
@@ -272,6 +281,7 @@
                 fields.name.value = editing ? button.dataset.name : '';
                 fields.rate.value = editing ? button.dataset.rate : '';
                 fields.minimum.value = editing ? button.dataset.minimum : '';
+                fields.maximum.value = editing ? button.dataset.maximum : '';
                 fields.label.value = editing ? button.dataset.label : '';
                 fields.icon.value = editing ? button.dataset.icon : 'bi-currency-exchange';
                 fields.description.value = editing ? button.dataset.description : '';
@@ -293,6 +303,7 @@
                 fields.name.value = @json(old('name'));
                 fields.rate.value = @json(old('rate'));
                 fields.minimum.value = @json(old('minimum_amount'));
+                fields.maximum.value = @json(old('maximum_amount'));
                 fields.label.value = @json(old('label'));
                 fields.icon.value = @json(old('icon', 'bi-currency-exchange'));
                 fields.description.value = @json(old('description'));

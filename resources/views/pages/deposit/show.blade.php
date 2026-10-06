@@ -17,7 +17,7 @@
     <div class="main-wrapper">
         @include('partials.home-header')
         <main class="deposit-page deposit-result-page">
-            <a class="deposit-back-link" href="{{ route('profile', ['tab' => 'history']) }}"><i class="bi bi-arrow-left"></i> Deposit history</a>
+            <a class="deposit-back-link" href="{{ route('wallet') }}#deposit-history"><i class="bi bi-arrow-left"></i> Deposit history</a>
             @if (session('status') || !empty($successMessage))
                 <div class="deposit-success-notice" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i><p>{{ session('status') ?: $successMessage }}</p></div>
             @endif

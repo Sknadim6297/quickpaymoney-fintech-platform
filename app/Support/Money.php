@@ -18,4 +18,12 @@ final class Money
 
         return '$'.$whole.'.'.str_pad($fraction, 2, '0');
     }
+
+    public static function formatInr(string $amount): string
+    {
+        [$whole, $fraction] = array_pad(explode('.', $amount, 2), 2, '00');
+        $whole = preg_replace('/\B(?=(\d{3})+(?!\d))/', ',', $whole) ?? $whole;
+
+        return '₹'.$whole.'.'.str_pad($fraction, 2, '0');
+    }
 }

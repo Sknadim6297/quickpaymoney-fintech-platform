@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
-use App\Models\Deposit;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -154,31 +153,11 @@ class AuthController extends Controller
     public function profile(Request $request): View
     {
         $user = $request->user('web');
-        $tab = in_array($request->query('tab'), ['overview', 'history', 'security'], true)
+        $tab = in_array($request->query('tab'), ['overview', 'details'], true)
             ? $request->query('tab')
             : 'overview';
-        $deposits = collect();
 
-        if ($tab === 'history') {
-            $filters = $request->validate([
-                'search' => ['nullable', 'string', 'max:150'],
-                'status' => ['nullable', Rule::in(Deposit::STATUSES)],
-            ]);
-
-            $deposits = $user->deposits()
-                ->when($filters['search'] ?? null, function ($query, string $search): void {
-                    $query->where(function ($query) use ($search): void {
-                        $query->where('deposit_id', 'like', '%'.$search.'%')
-                            ->orWhere('transaction_reference', 'like', '%'.$search.'%');
-                    });
-                })
-                ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
-                ->latest('submitted_at')
-                ->paginate(10)
-                ->withQueryString();
-        }
-
-        return view('pages.profile', compact('user', 'tab', 'deposits'));
+        return view('pages.profile', compact('user', 'tab'));
     }
 
     public function updateProfile(Request $request): RedirectResponse

@@ -13,6 +13,7 @@ class ExchangeRate extends Model
         'name',
         'rate',
         'minimum_amount',
+        'maximum_amount',
         'label',
         'description',
         'icon',
@@ -47,6 +48,19 @@ class ExchangeRate extends Model
     public function formattedMinimumAmount(): string
     {
         [$whole, $fraction] = array_pad(explode('.', (string) $this->minimum_amount, 2), 2, '');
+        $whole = preg_replace('/\B(?=(\d{3})+(?!\d))/', ',', $whole) ?? $whole;
+        $fraction = rtrim($fraction, '0');
+
+        return $whole.($fraction === '' ? '' : '.'.$fraction);
+    }
+
+    public function formattedMaximumAmount(): ?string
+    {
+        if ($this->maximum_amount === null) {
+            return null;
+        }
+
+        [$whole, $fraction] = array_pad(explode('.', (string) $this->maximum_amount, 2), 2, '');
         $whole = preg_replace('/\B(?=(\d{3})+(?!\d))/', ',', $whole) ?? $whole;
         $fraction = rtrim($fraction, '0');
 

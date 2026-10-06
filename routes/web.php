@@ -10,10 +10,13 @@ use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DepositController;
 use App\Http\Controllers\PublicPagesController;
+use App\Http\Controllers\WithdrawalQuoteController;
+use App\Http\Controllers\WalletController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PublicPagesController::class, 'home'])->name('home');
 Route::get('/exchange', [PublicPagesController::class, 'exchange'])->name('exchange');
+Route::get('/withdrawal/quote', WithdrawalQuoteController::class)->middleware('throttle:60,1')->name('withdrawal.quote');
 Route::view('/contact', 'pages.contact')->name('contact');
 Route::get('/dashboard', fn () => redirect()->route('home'))->name('dashboard');
 
@@ -35,6 +38,7 @@ Route::middleware(['auth:web', 'auth.session'])->group(function (): void {
         Route::get('/profile', [AuthController::class, 'profile'])->name('profile');
         Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
         Route::put('/security/password', [AuthController::class, 'changePassword'])->name('password.change');
+        Route::get('/wallet', WalletController::class)->name('wallet');
         Route::get('/deposit', [DepositController::class, 'create'])->name('deposit.create');
         Route::post('/deposit', [DepositController::class, 'store'])->middleware('throttle:5,1')->name('deposit.store');
         Route::get('/deposit/payment-qr', [DepositController::class, 'paymentQr'])->name('deposit.payment-qr');

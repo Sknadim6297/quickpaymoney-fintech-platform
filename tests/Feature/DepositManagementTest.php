@@ -6,7 +6,9 @@ use App\Models\AuditLog;
 use App\Models\BalanceLedgerEntry;
 use App\Models\Deposit;
 use App\Models\DepositSettings;
+use App\Models\ExchangeRate;
 use App\Models\User;
+use Database\Seeders\ExchangeRateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -277,7 +279,7 @@ class DepositManagementTest extends TestCase
         Storage::disk('local')->put($deposit->proof_path, 'private proof');
 
         $this->actingAs($owner, 'web')
-            ->get(route('profile', ['tab' => 'history']))
+            ->get(route('wallet'))
             ->assertOk()
             ->assertSee('Deposit History')
             ->assertSee($deposit->deposit_id)
@@ -293,7 +295,7 @@ class DepositManagementTest extends TestCase
         $this->get(route('deposit.payment-qr'))->assertRedirect(route('login'));
     }
 
-    public function test_profile_deposit_history_search_filters_and_paginates_only_customer_records(): void
+    public function test_wallet_deposit_history_search_filters_and_paginates_only_customer_records(): void
     {
         $owner = User::factory()->create();
         $other = User::factory()->create();
@@ -306,6 +308,63 @@ class DepositManagementTest extends TestCase
             );
         }
 
+        public function test_wallet_totals_use_only_approved_customer_ledger_entries_and_current_base_rate(): void
+        {
+            (new ExchangeRateSeeder)->run();
+            ExchangeRate::where('plan_key', 'base')->update(['rate' => '100.00000000']);
+
+            $owner = User::factory()->create(['balance' => '35.50']);
+            $other = User::factory()->create(['balance' => '999.00']);
+            $approved = $this->makeDeposit($owner, '35.50', 'UTRWALLETAPPROVED');
+            $approved->update(['status' => 'approved']);
+            BalanceLedgerEntry::create([
+                'user_id' => $owner->id,
+                'deposit_id' => $approved->id,
+                'entry_type' => 'credit',
+                'amount' => '35.50',
+            ]);
+
+            $rejected = $this->makeDeposit($owner, '80.00', 'UTRWALLETREJECTED');
+            $rejected->update(['status' => 'rejected']);
+            BalanceLedgerEntry::create([
+                'user_id' => $owner->id,
+                'deposit_id' => $rejected->id,
+                'entry_type' => 'credit',
+                'amount' => '80.00',
+            ]);
+
+            $otherDeposit = $this->makeDeposit($other, '999.00', 'UTRWALLETOTHER');
+            $otherDeposit->update(['status' => 'approved']);
+            BalanceLedgerEntry::create([
+                'user_id' => $other->id,
+                'deposit_id' => $otherDeposit->id,
+                'entry_type' => 'credit',
+                'amount' => '999.00',
+            ]);
+
+            $this->actingAs($owner, 'web')->get(route('wallet'))
+                ->assertOk()
+                ->assertSee('$35.50')
+                ->assertSee('₹3,550.00')
+                ->assertSee('1 approved deposit')
+                ->assertSee('UTRWALLETAPPROVED')
+                ->assertSee('UTRWALLETREJECTED')
+                ->assertDontSee('UTRWALLETOTHER')
+                ->assertDontSee('$999.00')
+                ->assertDontSee('₹8,000.00');
+        }
+
+        public function test_wallet_requires_an_active_authenticated_customer(): void
+        {
+            $this->get(route('wallet'))->assertRedirect(route('login'));
+
+            $customer = User::factory()->create(['role' => 'user']);
+            $this->actingAs($customer, 'web')->get(route('wallet'))->assertOk();
+
+            $admin = $this->admin();
+            $this->actingAs($admin, 'web')->get(route('wallet'))->assertForbidden();
+        }
+
         $rejected = $this->makeDeposit($owner, '15.00', 'UTRPROFILE9999');
         $rejected->update([
             'status' => 'rejected',
@@ -314,8 +373,7 @@ class DepositManagementTest extends TestCase
         $this->makeDeposit($other, '99.00', 'UTRPROFILEOTHER');
 
         $this->actingAs($owner, 'web')
-            ->get(route('profile', [
-                'tab' => 'history',
+            ->get(route('wallet', [
                 'search' => 'UTRPROFILE',
                 'status' => 'pending',
             ]))
@@ -326,12 +384,11 @@ class DepositManagementTest extends TestCase
             ->assertSee('Submitted Date')
             ->assertSee('Rejection Reason')
             ->assertSee('Details')
-            ->assertSee('UTRPROFILE0001')
+            ->assertSee('UTRPROFILE')
             ->assertDontSee('UTRPROFILEOTHER')
             ->assertSee('page=2');
 
-        $this->get(route('profile', [
-            'tab' => 'history',
+        $this->get(route('wallet', [
             'search' => 'UTRPROFILE9999',
             'status' => 'rejected',
         ]))
@@ -354,15 +411,15 @@ class DepositManagementTest extends TestCase
             ->assertOk()
             ->assertSee('$125.40')
             ->assertSee('Not a wallet')
-            ->assertSee(route('profile', ['tab' => 'history']))
+            ->assertSee(route('wallet'))
             ->assertSee(route('logout'))
             ->assertSee(route('deposit.create'))
             ->assertSee('aria-label="Contact support"', false);
 
-        $this->get(route('profile', ['tab' => 'security']))
+        $this->get(route('profile'))
             ->assertOk()
             ->assertSee('Change password')
-            ->assertSee('Deposit History');
+            ->assertDontSee('Deposit History');
     }
 
     private function configureQr(): DepositSettings
