@@ -15,12 +15,14 @@ class SupportTicketsTest extends TestCase
 
     public function test_guest_can_submit_a_ticket_through_the_preserved_support_form(): void
     {
-        $this->get(route('contact'))
+        $response = $this->get(route('contact'));
+        $response
             ->assertOk()
             ->assertSee('24/7 Premium Support')
             ->assertSee('Submit Request')
             ->assertDontSee('Select Gender')
             ->assertDontSee('submission is unavailable');
+        $this->assertSame(1, substr_count($response->getContent(), '<span>Login</span>'));
 
         $response = $this->post(route('support.tickets.store'), [
             'name' => 'Guest Customer',
@@ -75,7 +77,9 @@ class SupportTicketsTest extends TestCase
         $this->get(route('support.tickets.show', $ticket->ticket_number))
             ->assertOk()
             ->assertSee($ticket->ticket_number)
-            ->assertSee('I need help with an exchange request.');
+            ->assertSee('I need help with an exchange request.')
+            ->assertSee('wallet-header-link', false)
+            ->assertDontSee('login-btn', false);
 
         auth('web')->logout();
         $this->actingAs($otherCustomer, 'web')

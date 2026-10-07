@@ -118,7 +118,6 @@
 
                 @if (auth('web')->user()?->role === 'user')
                     <strong>{{ \App\Support\Money::formatUsd($recordedBalance) }}</strong>
-                    <small class="balance-disclaimer">Not a wallet</small>
                 @else
                     <strong>Sign in to view</strong>
                 @endif
@@ -350,25 +349,12 @@
 
         </div>
 
-    </section>
-    <!-- CENTER USDT CARD -->
-
-    
-
-
-    <!-- RIGHT -->
-
-    <div class="trade-right">
-
-        <h3>
-            Global Access
-        </h3>
-
-        <span>
-            Anytime, Anywhere
-        </span>
-
+        <div class="trade-right">
+            <h3>Global Access</h3>
+            <span>Anytime, Anywhere</span>
+        </div>
     </div>
+
 </section>
     </main>
 

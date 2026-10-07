@@ -14,7 +14,7 @@
 
 @section('content')
     <div class="main-wrapper">
-        @include('partials.account-header', ['actionRoute' => 'login', 'actionLabel' => 'Login', 'actionClass' => 'header-btn', 'showContact' => false])
+        @include('partials.home-header')
 
         <main class="support-area">
             <div class="support-banner">

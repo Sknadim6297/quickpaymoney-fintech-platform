@@ -960,10 +960,10 @@ body {
     .rate-card::after {
         content: "";
         position: absolute;
-        right: -15px;
-        top: -20px;
+        right: 0;
+        top: 0;
         width: 250px;
-        height: 160px;
+        height: 100%;
         background: linear-gradient( 125deg, transparent 20%, #d89f00 42%, #ffd21a 58%, #f2b900 72%, transparent 73% );
         opacity: .95;
         z-index: 1;
@@ -1541,113 +1541,6 @@ body {
     .trade-right span {
         font-size: 5px;
     }
-}
-/* =========================================
-   TRADE RIGHT - FIXED INSIDE BANNER
-========================================= */
-
-.trade-right {
-    position: absolute !important;
-    right: 160px !important;
-    top: 173% !important;
-    transform: translateY(-50%) !important;
-    z-index: 20 !important;
-    /* width: 162px; */
-    text-align: right;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-    .trade-right h3 {
-        margin: 0 !important;
-        color: #e5e5e5;
-        font-family: Georgia, serif;
-        font-style: italic;
-        font-size: 20px;
-        font-weight: 700;
-        line-height: 1.2;
-    }
-
-    .trade-right span {
-        display: block;
-        margin-top: 3px;
-        color: #999;
-        font-size: 8px;
-        font-style: italic;
-        line-height: 1.2;
-    }
-
-@media (max-width: 767px) {
-
-    .trade-right {
-        position: absolute !important;
-        right: 12px !important;
-        top: 170% !important;
-        transform: translateY(-50%) !important;
-        width: auto !important;
-        max-width: 125px;
-        text-align: right;
-        margin: 0 !important;
-        padding: 0 !important;
-        z-index: 20 !important;
-    }
-
-        .trade-right h3 {
-            font-size: 14px !important;
-            line-height: 1.2;
-            margin: 0 !important;
-            white-space: nowrap;
-        }
-
-        .trade-right span {
-            display: block;
-            font-size: 6px !important;
-            line-height: 1.2;
-            margin-top: 3px !important;
-            white-space: nowrap;
-        }
-}
-
-
-/* =========================================
-   SMALL MOBILE
-========================================= */
-
-@media (max-width: 480px) {
-
-    .trade-right {
-        right: 10px !important;
-        max-width: 110px;
-    }
-
-        .trade-right h3 {
-            font-size: 12px !important;
-        }
-
-        .trade-right span {
-            font-size: 5px !important;
-        }
-}
-
-
-/* =========================================
-   VERY SMALL MOBILE
-========================================= */
-
-@media (max-width: 360px) {
-
-    .trade-right {
-        right: 43px !important;
-        max-width: 95px;
-    }
-
-        .trade-right h3 {
-            font-size: 15px !important;
-        }
-
-        .trade-right span {
-            font-size: 8px !important;
-        }
 }
 /* =========================================
    HERO BANNER
