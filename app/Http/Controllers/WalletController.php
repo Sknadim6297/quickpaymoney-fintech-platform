@@ -39,16 +39,17 @@ class WalletController extends Controller
             ->latest('requested_at')
             ->paginate(10, ['*'], 'withdrawal_page')
             ->withQueryString();
-        $hasBankDetails = filled($user->account_holder_name)
-            && filled($user->bank_name)
-            && filled($user->account_number)
-            && filled($user->ifsc_code);
+        $hasBankDetails = $user->hasCompleteBankDetails();
+        $bankVerificationStatus = $user->bankVerificationStatus();
+        $canWithdraw = $hasBankDetails && $bankVerificationStatus === 'verified';
 
         return view('pages.wallet', [
             'user' => $user,
             'deposits' => $deposits,
             'withdrawals' => $withdrawals,
             'hasBankDetails' => $hasBankDetails,
+            'bankVerificationStatus' => $bankVerificationStatus,
+            'canWithdraw' => $canWithdraw,
             'withdrawalSubmissionKey' => (string) Str::uuid(),
         ]);
     }

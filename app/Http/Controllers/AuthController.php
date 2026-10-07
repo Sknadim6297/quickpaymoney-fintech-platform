@@ -174,15 +174,18 @@ class AuthController extends Controller
         $user = $request->user('web');
         abort_unless($user?->role === 'user', 403);
 
-        return view('pages.profile', compact('user'));
+        $bankVerificationStatus = $user->bankVerificationStatus();
+
+        return view('pages.profile', compact('user', 'bankVerificationStatus'));
     }
 
     public function bankDetails(Request $request): View
     {
         $user = $request->user('web');
         abort_unless($user?->role === 'user', 403);
+        $bankVerificationStatus = $user->bankVerificationStatus();
 
-        return view('pages.profile-bank', compact('user'));
+        return view('pages.profile-bank', compact('user', 'bankVerificationStatus'));
     }
 
     public function exchangeHistory(Request $request): View
@@ -262,7 +265,6 @@ class AuthController extends Controller
             $message = 'Profile details updated.';
         } elseif ($section === 'bank') {
             $validator = Validator::make($request->all(), [
-                'bank_current_password' => ['required', 'current_password:web'],
                 'account_holder_name' => ['required', 'string', 'max:120'],
                 'bank_name' => ['required', 'string', 'max:120'],
                 'account_number' => ['required', 'string', 'regex:/^\d{6,20}$/'],
@@ -274,21 +276,72 @@ class AuthController extends Controller
                 return redirect()->route('profile.bank')
                     ->withErrors($validator)
                     ->withInput($request->except([
-                        'bank_current_password',
-                        'account_holder_name',
-                        'bank_name',
                         'account_number',
-                        'ifsc_code',
-                        'branch_name',
-                        'account_type',
+                        'bank_verification_status',
+                        'bank_verification_reason',
+                        'bank_submitted_at',
+                        'bank_verified_at',
+                        'bank_reviewed_by_user_id',
+                        'user_id',
                         'usdt_wallet_address',
                         'wallet_current_password',
                     ]));
             }
             $validated = $validator->validated();
-            unset($validated['bank_current_password']);
-            $event = 'user.bank_details_updated';
-            $message = 'Bank details updated.';
+            $validated['ifsc_code'] = strtoupper($validated['ifsc_code']);
+
+            $message = DB::transaction(function () use ($request, $validated, $user): string {
+                $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+                $wasComplete = $lockedUser->hasCompleteBankDetails();
+                $fields = [
+                    'account_holder_name',
+                    'bank_name',
+                    'account_number',
+                    'ifsc_code',
+                    'branch_name',
+                    'account_type',
+                ];
+                $changed = collect($fields)->contains(
+                    fn (string $field): bool => (string) $lockedUser->{$field} !== (string) $validated[$field]
+                );
+                $wasRejected = $lockedUser->bankVerificationStatus() === 'rejected';
+                $submittedForVerification = ! $wasComplete || $changed || $wasRejected;
+
+                $lockedUser->forceFill($validated);
+                if ($submittedForVerification) {
+                    $lockedUser->forceFill([
+                        'bank_verification_status' => 'pending',
+                        'bank_verification_reason' => null,
+                        'bank_submitted_at' => now(),
+                        'bank_verified_at' => null,
+                        'bank_reviewed_by_user_id' => null,
+                    ]);
+                }
+                $lockedUser->save();
+
+                AuditLog::create([
+                    'actor_user_id' => $lockedUser->id,
+                    'subject_user_id' => $lockedUser->id,
+                    'event' => $wasComplete ? 'user.bank_details_updated' : 'user.bank_details_submitted',
+                    'metadata' => [
+                        'updated_fields' => array_keys($validated),
+                        'verification_status' => $lockedUser->bankVerificationStatus(),
+                    ],
+                    'ip_address' => $request->ip(),
+                ]);
+
+                if (! $wasComplete) {
+                    return 'Bank details submitted for verification.';
+                }
+
+                if ($submittedForVerification) {
+                    return 'Your bank details were updated and have been sent for verification again.';
+                }
+
+                return 'Bank details updated.';
+            });
+
+            return redirect()->route('profile.bank')->with('status', $message);
         } else {
             $validator = Validator::make($request->all(), [
                 'wallet_current_password' => ['required', 'current_password:web'],
@@ -298,7 +351,6 @@ class AuthController extends Controller
                 return redirect()->route('profile.bank')
                     ->withErrors($validator)
                     ->withInput($request->except([
-                        'bank_current_password',
                         'account_holder_name',
                         'bank_name',
                         'account_number',
@@ -316,10 +368,11 @@ class AuthController extends Controller
         }
 
         DB::transaction(function () use ($request, $validated, $user, $event): void {
-            $user->fill($validated)->save();
+            $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $lockedUser->fill($validated)->save();
             AuditLog::create([
-                'actor_user_id' => $user->id,
-                'subject_user_id' => $user->id,
+                'actor_user_id' => $lockedUser->id,
+                'subject_user_id' => $lockedUser->id,
                 'event' => $event,
                 'metadata' => ['updated_fields' => array_keys($validated)],
                 'ip_address' => $request->ip(),

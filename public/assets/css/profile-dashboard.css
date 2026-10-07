@@ -305,9 +305,126 @@
     font-size: 12px;
 }
 
+.profile-menu-label {
+    min-width: 0;
+}
+
+.profile-bank-status {
+    flex: 0 0 auto;
+    padding: 4px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.profile-bank-status.is-added {
+    background: rgba(65, 190, 115, .12);
+    color: #69d794;
+}
+
+.profile-bank-status.is-not-added {
+    background: rgba(220, 90, 105, .1);
+    color: #e58a96;
+}
+
+.profile-bank-status.is-pending {
+    background: rgba(255, 193, 7, .12);
+    color: #e8c74d;
+}
+
+.profile-bank-status.is-verified {
+    background: rgba(65, 190, 115, .12);
+    color: #69d794;
+}
+
+.profile-bank-status.is-rejected {
+    background: rgba(220, 90, 105, .1);
+    color: #e58a96;
+}
+
+.profile-content-heading .profile-bank-status {
+    margin-left: auto;
+}
+
+.profile-content-heading > div {
+    min-width: 0;
+}
+
+.profile-bank-summary {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #292d34;
+    border-radius: 13px;
+    background: #191c22;
+}
+
+.profile-bank-summary h3,
+.profile-bank-form-heading {
+    margin: 0 0 13px;
+    color: #f0c735;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.profile-bank-summary-list {
+    display: grid;
+    gap: 9px;
+    margin: 0;
+}
+
+.profile-bank-summary-list > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #292d34;
+    font-size: 11px;
+}
+
+.profile-bank-summary-list > div:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.profile-bank-summary-list dt {
+    flex: 0 0 auto;
+    color: #9298a2;
+}
+
+.profile-bank-summary-list dd {
+    min-width: 0;
+    margin: 0;
+    color: #f1f2f4;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.profile-bank-form-heading {
+    margin-top: 20px;
+    color: #fff;
+}
+
+.profile-bank-edit-toggle {
+    margin-top: 16px;
+}
+
+.profile-bank-edit-actions {
+    gap: 9px;
+}
+
+.profile-bank-edit-cancel {
+    border: 1px solid #393e48;
+    background: #191c22;
+    color: #d8dbe0;
+}
+
 .profile-subpage {
     width: calc(100% - 24px);
-    max-width: 760px;
+    max-width: 430px;
+    margin-inline: auto;
+    box-sizing: border-box;
 }
 
 .profile-back-link {

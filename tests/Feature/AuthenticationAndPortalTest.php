@@ -178,6 +178,7 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertSee('Exchange History')
             ->assertSee('Referrals History')
             ->assertSee('Reset Password')
+            ->assertSee('Not Added')
             ->assertDontSee('Deposit History')
             ->assertDontSee('98765.43210000');
         $this->assertMatchesRegularExpression('/^SKNA[0-9]{6}$/', $user->customer_id);
@@ -185,7 +186,11 @@ class AuthenticationAndPortalTest extends TestCase
         $this->actingAs($user, 'web')->get(route('profile.bank'))
             ->assertOk()
             ->assertSee('Bank Details')
-            ->assertSee('USDT Wallet Details');
+            ->assertDontSee('Current Password')
+            ->assertDontSee('USDT Wallet Details')
+            ->assertDontSee('name="usdt_wallet_address"', false)
+            ->assertSee('content-area app-shell profile-dashboard', false)
+            ->assertSee('bottom-nav app-shell', false);
 
         $this->actingAs($user, 'web')->get(route('profile.password'))
             ->assertOk()
@@ -234,41 +239,55 @@ class AuthenticationAndPortalTest extends TestCase
         $this->assertTrue(Hash::check('ReplacementStrong!Password456', $user->fresh()->password));
     }
 
-    public function test_profile_bank_and_wallet_details_require_reauthentication_and_are_encrypted(): void
+    public function test_profile_bank_details_update_without_password_and_wallet_data_remains_encrypted(): void
     {
         $user = User::factory()->create(['password' => 'CurrentStrong!Password123']);
+        $otherUser = User::factory()->create([
+            'account_holder_name' => 'Other Customer',
+            'bank_name' => 'Other Bank',
+            'account_number' => '998877665544',
+            'ifsc_code' => 'WXYZ0123456',
+            'branch_name' => 'Other Branch',
+            'account_type' => 'Current',
+        ]);
 
         $this->actingAs($user, 'web')
             ->get(route('profile.bank'))
             ->assertOk()
             ->assertSee('Bank Details')
-            ->assertSee('USDT Wallet Details')
             ->assertSee('name="account_number"', false)
-            ->assertSee('name="usdt_wallet_address"', false);
+            ->assertSee('Account Holder Name')
+            ->assertSee('Bank Name')
+            ->assertSee('IFSC Code')
+            ->assertSee('Branch Name')
+            ->assertSee('Account Type')
+            ->assertSee('Save Bank Details')
+            ->assertDontSee('Current Password')
+            ->assertDontSee('Changes require your current password.')
+            ->assertDontSee('USDT Wallet Details')
+            ->assertDontSee('Wallet Address')
+            ->assertDontSee('Re-authentication required');
+
+        $this->actingAs($user, 'web')->get(route('profile'))
+            ->assertOk()
+            ->assertSee('Not Added')
+            ->assertDontSee('998877665544')
+            ->assertDontSee('WXYZ0123456');
 
         $bankDetails = [
             'section' => 'bank',
-            'bank_current_password' => 'wrong-password',
             'account_holder_name' => 'Morgan Example',
             'bank_name' => 'Example Bank',
             'account_number' => '123456789012',
             'ifsc_code' => 'ABCD0123456',
             'branch_name' => 'Central Branch',
             'account_type' => 'Savings',
+            'user_id' => $otherUser->id,
         ];
-
-        $this->from(route('profile.bank'))
-            ->put(route('profile.update'), $bankDetails)
-            ->assertRedirect(route('profile.bank'))
-            ->assertSessionHasErrors('bank_current_password')
-            ->assertSessionMissing('_old_input.account_number')
-            ->assertSessionMissing('_old_input.bank_current_password');
-        $this->assertNull($user->fresh()->account_number);
 
         $this->from(route('profile.bank'))
             ->put(route('profile.update'), [
                 ...$bankDetails,
-                'bank_current_password' => 'CurrentStrong!Password123',
                 'ifsc_code' => 'invalid',
                 'account_type' => 'Business',
             ])
@@ -280,10 +299,9 @@ class AuthenticationAndPortalTest extends TestCase
         $this->from(route('profile.bank'))
             ->put(route('profile.update'), [
                 ...$bankDetails,
-                'bank_current_password' => 'CurrentStrong!Password123',
             ])
             ->assertRedirect(route('profile.bank'))
-            ->assertSessionHas('status', 'Bank details updated.');
+            ->assertSessionHas('status', 'Bank details submitted for verification.');
 
         $user->refresh();
         $this->assertSame('Morgan Example', $user->account_holder_name);
@@ -292,14 +310,16 @@ class AuthenticationAndPortalTest extends TestCase
         $this->assertSame('ABCD0123456', $user->ifsc_code);
         $this->assertSame('Central Branch', $user->branch_name);
         $this->assertSame('Savings', $user->account_type);
+        $this->assertSame('Other Customer', $otherUser->fresh()->account_holder_name);
+        $this->assertSame('998877665544', $otherUser->fresh()->account_number);
         $this->assertStringNotContainsString('123456789012', $user->getRawOriginal('account_number'));
         $this->assertDatabaseHas('audit_logs', [
             'subject_user_id' => $user->id,
-            'event' => 'user.bank_details_updated',
+            'event' => 'user.bank_details_submitted',
         ]);
         $this->assertStringNotContainsString(
             '123456789012',
-            json_encode(\App\Models\AuditLog::where('event', 'user.bank_details_updated')->firstOrFail()->metadata)
+            json_encode(\App\Models\AuditLog::where('event', 'user.bank_details_submitted')->firstOrFail()->metadata)
         );
 
         $walletDetails = [
@@ -318,12 +338,18 @@ class AuthenticationAndPortalTest extends TestCase
         $this->assertStringNotContainsString($walletDetails['usdt_wallet_address'], $user->getRawOriginal('usdt_wallet_address'));
 
         $this->get(route('profile'))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('Pending')
+            ->assertDontSee('123456789012')
+            ->assertDontSee('ABCD0123456');
 
         $this->get(route('profile.bank'))
             ->assertOk()
-            ->assertSee('Bank account on file ending in 9012')
-            ->assertSee('A wallet address is saved')
+            ->assertSee('••••••9012')
+            ->assertSee('Pending Verification')
+            ->assertSee('value="Morgan Example"', false)
+            ->assertSee('value="Example Bank"', false)
+            ->assertDontSee('USDT Wallet Details')
             ->assertDontSee('TQn9Y2khDD95J42FQtQTdwV');
     }
 
@@ -410,6 +436,10 @@ class AuthenticationAndPortalTest extends TestCase
     {
         $this->get(route('profile'))->assertRedirect(route('login'));
         $this->get(route('profile.bank'))->assertRedirect(route('login'));
+        $this->put(route('profile.update'), [
+            'section' => 'bank',
+            'account_holder_name' => 'Unauthenticated Update',
+        ])->assertRedirect(route('login'));
 
         $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin, 'web')->get(route('profile'))->assertForbidden();

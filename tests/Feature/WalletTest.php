@@ -354,6 +354,9 @@ class WalletTest extends TestCase
             'bank_name' => 'Bank of Example',
             'account_number' => '1234567890',
             'ifsc_code' => 'EXMP0001234',
+            'branch_name' => 'Example Branch',
+            'account_type' => 'Savings',
+            'bank_verification_status' => 'verified',
             ...$attributes,
         ]);
     }
@@ -362,10 +365,14 @@ class WalletTest extends TestCase
     {
         $balance = $attributes['balance'] ?? '0.00';
         $inrBalance = $attributes['inr_balance'] ?? '0.00';
-        unset($attributes['balance'], $attributes['inr_balance']);
+        $bankVerificationStatus = $attributes['bank_verification_status'] ?? null;
+        unset($attributes['balance'], $attributes['inr_balance'], $attributes['bank_verification_status']);
 
         $user = User::factory()->create(['balance' => $balance, ...$attributes]);
-        $user->forceFill(['inr_balance' => $inrBalance])->save();
+        $user->forceFill([
+            'inr_balance' => $inrBalance,
+            ...($bankVerificationStatus ? ['bank_verification_status' => $bankVerificationStatus] : []),
+        ])->save();
 
         return $user;
     }

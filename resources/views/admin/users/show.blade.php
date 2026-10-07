@@ -32,6 +32,46 @@
         </section>
     </div>
     <section class="admin-panel admin-section-gap">
+        <div class="admin-panel-heading">
+            <div><span class="admin-eyebrow">PAYOUT INFORMATION</span><h2>Bank details</h2><p>Bank account numbers are masked in the Admin summary.</p></div>
+            <span class="portal-badge {{ $bankVerificationStatus === 'not_submitted' ? 'inactive' : $bankVerificationStatus }}"><span class="admin-badge-dot"></span>{{ str($bankVerificationStatus)->replace('_', ' ')->title() }}</span>
+        </div>
+        @if ($user->hasCompleteBankDetails())
+            <dl class="admin-detail-list">
+                <div><dt>Customer</dt><dd>{{ $user->name }}<small>{{ $user->email }}</small></dd></div>
+                <div><dt>Customer ID</dt><dd>{{ $user->customer_id }}</dd></div>
+                <div><dt>Account holder</dt><dd>{{ $user->account_holder_name }}</dd></div>
+                <div><dt>Bank name</dt><dd>{{ $user->bank_name }}</dd></div>
+                <div><dt>Account number</dt><dd>{{ $user->maskedBankAccountNumber() }}</dd></div>
+                <div><dt>IFSC</dt><dd>{{ $user->ifsc_code }}</dd></div>
+                <div><dt>Branch</dt><dd>{{ $user->branch_name }}</dd></div>
+                <div><dt>Account type</dt><dd>{{ $user->account_type }}</dd></div>
+                <div><dt>Submitted / updated</dt><dd>{{ $user->bank_submitted_at?->format('M j, Y · H:i') ?? 'Not recorded' }}</dd></div>
+                <div><dt>Verification status</dt><dd>{{ str($bankVerificationStatus)->replace('_', ' ')->title() }}</dd></div>
+                @if ($bankVerificationStatus === 'rejected')
+                    <div><dt>Rejection reason</dt><dd>{{ $user->bank_verification_reason }}</dd></div>
+                @endif
+            </dl>
+            @if ($bankVerificationStatus === 'pending')
+                <div class="admin-bank-review-actions">
+                    <form method="POST" action="{{ route('admin.users.bank.verify', $user) }}" data-confirm="Verify this customer's saved bank details?" data-confirm-title="Verify bank details?">
+                        @csrf
+                        <button class="admin-button" type="submit"><i class="bi bi-check-circle" aria-hidden="true"></i> Verify</button>
+                    </form>
+                    <form class="admin-form" method="POST" action="{{ route('admin.users.bank.reject', $user) }}">
+                        @csrf
+                        <label for="bank-rejection-reason">Rejection reason</label>
+                        <textarea class="portal-input" id="bank-rejection-reason" name="reason" rows="3" maxlength="500" required>{{ old('reason') }}</textarea>
+                        @error('reason')<span class="admin-field-error">{{ $message }}</span>@enderror
+                        <button class="admin-button admin-button-secondary" type="submit"><i class="bi bi-x-circle" aria-hidden="true"></i> Reject bank details</button>
+                    </form>
+                </div>
+            @endif
+        @else
+            <div class="admin-inline-notice"><i class="bi bi-info-circle" aria-hidden="true"></i><p>No complete bank details have been submitted.</p></div>
+        @endif
+    </section>
+    <section class="admin-panel admin-section-gap">
         <div class="admin-panel-heading"><div><span class="admin-eyebrow">ACCOUNT ACTIVITY</span><h2>Exchange and transaction history</h2></div></div>
         @if ($exchanges->isEmpty())<div class="admin-empty-state"><span><i class="bi bi-arrow-left-right" aria-hidden="true"></i></span><strong>No exchange records</strong><p>Exchange requests for this account will appear here.</p></div>@else
             <div class="portal-table-wrap admin-table-wrap"><table class="portal-table admin-table"><thead><tr><th scope="col">Request</th><th scope="col">USDT</th><th scope="col">Rate</th><th scope="col">INR</th><th scope="col">Status</th><th scope="col">Reference</th></tr></thead><tbody>

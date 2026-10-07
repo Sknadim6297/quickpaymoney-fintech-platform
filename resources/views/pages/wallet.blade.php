@@ -45,7 +45,7 @@
                 <a class="profile-action-button profile-bank-action" href="{{ route('deposit.create') }}">
                     <i class="bi bi-plus-circle" aria-hidden="true"></i><span>Add Funds</span><i class="bi bi-arrow-right" aria-hidden="true"></i>
                 </a>
-                @if (\App\Support\Decimal::compare((string) $user->inr_balance, '0', 2) > 0 && $hasBankDetails)
+                @if (\App\Support\Decimal::compare((string) $user->inr_balance, '0', 2) > 0 && $canWithdraw)
                     <a class="profile-action-button profile-sell-action wallet-withdraw-action" href="#withdrawal-form">
                         <i class="bi bi-bank" aria-hidden="true"></i><span>Withdraw INR</span><i class="bi bi-arrow-right" aria-hidden="true"></i>
                     </a>
@@ -60,6 +60,10 @@
                 <p class="wallet-inline-notice">No INR balance available for withdrawal.</p>
             @elseif (! $hasBankDetails)
                 <p class="wallet-inline-notice">Add complete bank details in <a href="{{ route('profile.bank') }}">Profile</a> before withdrawing.</p>
+            @elseif ($bankVerificationStatus === 'pending')
+                <p class="wallet-inline-notice">Your bank details are pending verification.</p>
+            @elseif ($bankVerificationStatus === 'rejected')
+                <p class="wallet-inline-notice">Your bank details were not verified. Please update them and submit again.</p>
             @endif
 
             <section class="portal-card wallet-history-card" id="deposit-history" aria-labelledby="deposit-history-title">
@@ -123,7 +127,7 @@
                     <button class="wallet-filter-button" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i><span>Filter</span></button>
                 </form>
 
-                @if ($hasBankDetails && \App\Support\Decimal::compare((string) $user->inr_balance, '0', 2) > 0)
+                @if ($canWithdraw && \App\Support\Decimal::compare((string) $user->inr_balance, '0', 2) > 0)
                     <form class="wallet-withdrawal-form" id="withdrawal-form" method="POST" action="{{ route('wallet.withdrawals.store') }}">
                         @csrf
                         <input type="hidden" name="submission_key" value="{{ $withdrawalSubmissionKey }}">

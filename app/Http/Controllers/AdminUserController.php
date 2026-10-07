@@ -17,6 +17,7 @@ class AdminUserController extends Controller
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', Rule::in(['active', 'suspended', 'blocked'])],
+            'bank_status' => ['nullable', Rule::in(User::BANK_VERIFICATION_STATUSES)],
         ]);
 
         $users = User::query()
@@ -28,6 +29,7 @@ class AdminUserController extends Controller
                 });
             })
             ->when($validated['status'] ?? null, fn ($query, string $status) => $query->where('account_status', $status))
+            ->when($validated['bank_status'] ?? null, fn ($query, string $status) => $query->where('bank_verification_status', $status))
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -47,6 +49,7 @@ class AdminUserController extends Controller
     {
         return view('admin.users.show', [
             'user' => $user,
+            'bankVerificationStatus' => $user->bankVerificationStatus(),
             'exchanges' => $user->exchangeRequests()->latest()->paginate(10),
             'activity' => AuditLog::with('actor')->where('subject_user_id', $user->id)->latest()->limit(30)->get(),
         ]);
@@ -94,5 +97,65 @@ class AdminUserController extends Controller
         });
 
         return back()->with('status', 'User access settings updated.');
+    }
+
+    public function verifyBank(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($user->role === 'user', 404);
+
+        DB::transaction(function () use ($request, $user): void {
+            $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            abort_unless($lockedUser->hasCompleteBankDetails(), 422, 'Complete bank details are required before verification.');
+            abort_unless($lockedUser->bankVerificationStatus() === 'pending', 422, 'Only pending bank details can be verified.');
+
+            $lockedUser->forceFill([
+                'bank_verification_status' => 'verified',
+                'bank_verification_reason' => null,
+                'bank_verified_at' => now(),
+                'bank_reviewed_by_user_id' => $request->user('admin')->id,
+            ])->save();
+
+            $this->auditBankDecision($request, $lockedUser, 'admin.bank_details_verified', []);
+        });
+
+        return back()->with('status', 'Bank details verified.');
+    }
+
+    public function rejectBank(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($user->role === 'user', 404);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        DB::transaction(function () use ($request, $user, $validated): void {
+            $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            abort_unless($lockedUser->hasCompleteBankDetails(), 422, 'Complete bank details are required before review.');
+            abort_unless($lockedUser->bankVerificationStatus() === 'pending', 422, 'Only pending bank details can be rejected.');
+
+            $lockedUser->forceFill([
+                'bank_verification_status' => 'rejected',
+                'bank_verification_reason' => trim($validated['reason']),
+                'bank_verified_at' => null,
+                'bank_reviewed_by_user_id' => $request->user('admin')->id,
+            ])->save();
+
+            $this->auditBankDecision($request, $lockedUser, 'admin.bank_details_rejected', [
+                'reason' => trim($validated['reason']),
+            ]);
+        });
+
+        return back()->with('status', 'Bank details rejected.');
+    }
+
+    private function auditBankDecision(Request $request, User $user, string $event, array $metadata): void
+    {
+        AuditLog::create([
+            'actor_user_id' => $request->user('admin')->id,
+            'subject_user_id' => $user->id,
+            'event' => $event,
+            'metadata' => ['verification_status' => $user->bankVerificationStatus(), ...$metadata],
+            'ip_address' => $request->ip(),
+        ]);
     }
 }

@@ -51,18 +51,15 @@ class WithdrawalController extends Controller
                     return $existing;
                 }
 
-                $bankFields = [
-                    'account_holder_name' => $lockedUser->account_holder_name,
-                    'bank_name' => $lockedUser->bank_name,
-                    'account_number' => $lockedUser->account_number,
-                    'ifsc_code' => $lockedUser->ifsc_code,
-                ];
-                foreach ($bankFields as $field => $value) {
-                    if (! is_string($value) || trim($value) === '') {
-                        throw ValidationException::withMessages([
-                            'bank' => 'Complete your bank details in Profile before requesting an INR withdrawal.',
-                        ]);
-                    }
+                $bankStatus = $lockedUser->bankVerificationStatus();
+                if ($bankStatus !== 'verified') {
+                    $message = match ($bankStatus) {
+                        'pending' => 'Your bank details are pending verification.',
+                        'rejected' => 'Your bank details were not verified. Please update them and submit again.',
+                        default => 'Add your bank details before withdrawing.',
+                    };
+
+                    throw ValidationException::withMessages(['bank' => $message]);
                 }
 
                 if (Decimal::compare((string) $lockedUser->inr_balance, $amount, 2) < 0) {

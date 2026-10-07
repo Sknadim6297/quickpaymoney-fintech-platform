@@ -14,20 +14,67 @@
 @endsection
 
 @section('content')
+    @php
+        $hasBankDetails = $user->hasCompleteBankDetails();
+        $showBankEditForm = ! $hasBankDetails || $errors->any();
+    @endphp
     <div class="main-wrapper">
         @include('partials.home-header')
-        <main class="content-area profile-dashboard profile-subpage">
+        <main class="content-area app-shell profile-dashboard">
             @include('partials.profile-hero', ['user' => $user])
             <a class="profile-back-link" href="{{ route('profile') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Profile</a>
             <section class="profile-content-card">
-                <div class="profile-content-heading"><span class="profile-content-icon"><i class="bi bi-bank" aria-hidden="true"></i></span><div><h2>Bank Details</h2><p>Manage your payout bank information. Changes require your current password.</p></div></div>
+                <div class="profile-content-heading">
+                    <span class="profile-content-icon"><i class="bi bi-bank" aria-hidden="true"></i></span>
+                    <div><h2>Bank Details</h2><p>Manage your payout bank information.</p></div>
+                    <span class="profile-bank-status is-{{ match ($bankVerificationStatus) {
+                        'not_submitted' => 'not-added',
+                        'pending' => 'pending',
+                        'verified' => 'verified',
+                        'rejected' => 'rejected',
+                    } }}">{{ match ($bankVerificationStatus) {
+                        'pending' => 'Pending Verification',
+                        'verified' => 'Verified',
+                        'rejected' => 'Rejected',
+                        default => 'Not Added',
+                    } }}</span>
+                </div>
                 @if ($errors->any())
                     <div class="portal-error" role="alert">Please check the highlighted fields and try again.</div>
                 @endif
-                @if ($user->account_number)
-                    <p class="profile-private-note"><i class="bi bi-shield-lock" aria-hidden="true"></i> Bank account on file ending in {{ substr($user->account_number, -4) }}. For your security, enter the full account number when saving changes.</p>
+                @if ($hasBankDetails)
+                    <section class="profile-bank-summary" aria-labelledby="saved-bank-account-heading">
+                        <h3 id="saved-bank-account-heading">Saved Bank Account</h3>
+                        <dl class="profile-bank-summary-list">
+                            <div><dt>Account Holder</dt><dd>{{ $user->account_holder_name }}</dd></div>
+                            <div><dt>Bank Name</dt><dd>{{ $user->bank_name }}</dd></div>
+                            <div><dt>Account Number</dt><dd>{{ $user->maskedBankAccountNumber() }}</dd></div>
+                            <div><dt>IFSC Code</dt><dd>{{ $user->ifsc_code }}</dd></div>
+                            <div><dt>Branch</dt><dd>{{ $user->branch_name }}</dd></div>
+                            <div><dt>Account Type</dt><dd>{{ $user->account_type }}</dd></div>
+                            <div><dt>Verification Status</dt><dd>{{ match ($bankVerificationStatus) {
+                                'pending' => 'Pending Verification',
+                                'verified' => 'Verified',
+                                'rejected' => 'Rejected',
+                                default => 'Not Submitted',
+                            } }}</dd></div>
+                            @if ($bankVerificationStatus === 'rejected' && $user->bank_verification_reason)
+                                <div><dt>Reason</dt><dd>{{ $user->bank_verification_reason }}</dd></div>
+                            @endif
+                            @if ($user->bank_submitted_at)
+                                <div><dt>Submitted / Updated</dt><dd>{{ $user->bank_submitted_at->format('M j, Y · H:i') }}</dd></div>
+                            @endif
+                        </dl>
+                    </section>
+                    <button class="profile-save-button profile-bank-edit-toggle" type="button"
+                        aria-controls="bank-details-edit-form" aria-expanded="{{ $showBankEditForm ? 'true' : 'false' }}"
+                        data-bank-edit-open>
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i> Edit Bank Details
+                    </button>
                 @endif
-                <form class="profile-form" method="POST" action="{{ route('profile.update') }}" autocomplete="off">
+                <div id="bank-details-edit-form" @if (! $showBankEditForm) hidden aria-hidden="true" @endif>
+                    <h3 class="profile-bank-form-heading">{{ $hasBankDetails ? 'Edit Bank Details' : 'Add Bank Details' }}</h3>
+                    <form class="profile-form" method="POST" action="{{ route('profile.update') }}" autocomplete="off">
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="section" value="bank">
@@ -38,32 +85,45 @@
                         <div class="profile-input-group"><label for="ifsc-code">IFSC Code</label><input class="profile-form-control profile-ifsc-input" id="ifsc-code" name="ifsc_code" value="{{ old('ifsc_code', $user->ifsc_code) }}" minlength="11" maxlength="11" autocapitalize="characters" autocomplete="off" required>@error('ifsc_code')<span class="profile-field-error">{{ $message }}</span>@enderror</div>
                         <div class="profile-input-group"><label for="branch-name">Branch Name</label><input class="profile-form-control" id="branch-name" name="branch_name" value="{{ old('branch_name', $user->branch_name) }}" maxlength="120" autocomplete="off" required>@error('branch_name')<span class="profile-field-error">{{ $message }}</span>@enderror</div>
                         <div class="profile-input-group"><label for="account-type">Account Type</label><select class="profile-form-control" id="account-type" name="account_type" required><option value="">Select account type</option>@foreach (['Savings', 'Current'] as $accountType)<option value="{{ $accountType }}" @selected(old('account_type', $user->account_type) === $accountType)>{{ $accountType }}</option>@endforeach</select>@error('account_type')<span class="profile-field-error">{{ $message }}</span>@enderror</div>
-                        <div class="profile-input-group profile-full-width"><label for="bank-current-password">Current Password</label><input class="profile-form-control" id="bank-current-password" type="password" name="bank_current_password" autocomplete="current-password" required>@error('bank_current_password')<span class="profile-field-error">{{ $message }}</span>@enderror</div>
                     </div>
-                    <div class="profile-form-actions"><button class="profile-save-button" type="submit"><i class="bi bi-check-circle" aria-hidden="true"></i> Save Bank Details</button></div>
-                </form>
-            </section>
-            <section class="profile-content-card profile-secondary-card">
-                <div class="profile-content-heading"><span class="profile-content-icon"><i class="bi bi-wallet2" aria-hidden="true"></i></span><div><h2>USDT Wallet Details</h2><p>Update the wallet address on your customer profile. Re-authentication is required.</p></div></div>
-                @if ($user->usdt_wallet_address)
-                    <p class="profile-private-note"><i class="bi bi-shield-lock" aria-hidden="true"></i> A wallet address is saved. Re-enter it to replace the saved address.</p>
-                @endif
-                <form class="profile-form" method="POST" action="{{ route('profile.update') }}" autocomplete="off">
-                    @csrf
-                    @method('PUT')
-                    <input type="hidden" name="section" value="wallet">
-                    <div class="profile-form-grid">
-                        <div class="profile-input-group profile-full-width"><label for="usdt-wallet-address">USDT Wallet Address</label><input class="profile-form-control" id="usdt-wallet-address" name="usdt_wallet_address" value="{{ old('usdt_wallet_address') }}" maxlength="255" autocomplete="off" required>@error('usdt_wallet_address')<span class="profile-field-error">{{ $message }}</span>@enderror</div>
-                        <div class="profile-input-group profile-full-width"><label for="wallet-current-password">Current Password</label><input class="profile-form-control" id="wallet-current-password" type="password" name="wallet_current_password" autocomplete="current-password" required>@error('wallet_current_password')<span class="profile-field-error">{{ $message }}</span>@enderror</div>
-                    </div>
-                    <div class="profile-form-actions"><button class="profile-save-button" type="submit"><i class="bi bi-check-circle" aria-hidden="true"></i> Save Wallet Address</button></div>
-                </form>
+                        <div class="profile-form-actions profile-bank-edit-actions">
+                            <button class="profile-save-button" type="submit"><i class="bi bi-check-circle" aria-hidden="true"></i> {{ $hasBankDetails ? 'Save Changes' : 'Save Bank Details' }}</button>
+                            @if ($hasBankDetails)
+                                <button class="profile-save-button profile-bank-edit-cancel" type="button" aria-controls="bank-details-edit-form" data-bank-edit-cancel>Cancel</button>
+                            @endif
+                        </div>
+                    </form>
+                </div>
             </section>
         </main>
-        @include('partials.bottom-nav', ['active' => 'profile', 'variant' => 'standard'])
+        @include('partials.bottom-nav', ['active' => 'profile', 'variant' => 'standard', 'appShell' => true])
     </div>
 @endsection
 
 @section('scripts')
     @include('partials.profile-copy-script')
+    <script>
+        (() => {
+            const form = document.getElementById('bank-details-edit-form');
+            const openButton = document.querySelector('[data-bank-edit-open]');
+            const cancelButton = document.querySelector('[data-bank-edit-cancel]');
+
+            if (!form || !openButton || !cancelButton) return;
+
+            openButton.addEventListener('click', () => {
+                form.hidden = false;
+                form.removeAttribute('aria-hidden');
+                openButton.setAttribute('aria-expanded', 'true');
+                form.querySelector('input:not([type="hidden"])')?.focus();
+            });
+
+            cancelButton.addEventListener('click', () => {
+                form.querySelector('form').reset();
+                form.hidden = true;
+                form.setAttribute('aria-hidden', 'true');
+                openButton.setAttribute('aria-expanded', 'false');
+                openButton.focus();
+            });
+        })();
+    </script>
 @endsection

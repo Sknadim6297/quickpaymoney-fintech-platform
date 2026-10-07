@@ -50,7 +50,20 @@
 
             <nav class="profile-menu" aria-label="Profile menu">
                 <a class="profile-menu-item" href="{{ route('profile.bank') }}">
-                    <span class="profile-menu-icon"><i class="bi bi-bank" aria-hidden="true"></i></span><span>Bank Details</span><i class="bi bi-chevron-right" aria-hidden="true"></i>
+                    <span class="profile-menu-icon"><i class="bi bi-bank" aria-hidden="true"></i></span>
+                    <span class="profile-menu-label">Bank Details</span>
+                    <span class="profile-bank-status is-{{ match ($bankVerificationStatus) {
+                        'not_submitted' => 'not-added',
+                        'pending' => 'pending',
+                        'verified' => 'verified',
+                        'rejected' => 'rejected',
+                    } }}">{{ match ($bankVerificationStatus) {
+                        'pending' => 'Pending',
+                        'verified' => 'Verified',
+                        'rejected' => 'Rejected',
+                        default => 'Not Added',
+                    } }}</span>
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
                 </a>
                 <a class="profile-menu-item" href="{{ route('profile.exchanges') }}">
                     <span class="profile-menu-icon"><i class="bi bi-arrow-left-right" aria-hidden="true"></i></span><span>Exchange History</span><i class="bi bi-chevron-right" aria-hidden="true"></i>

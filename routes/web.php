@@ -91,6 +91,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
             Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('users.show');
             Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+            Route::post('/users/{user}/bank-verification/verify', [AdminUserController::class, 'verifyBank'])->name('users.bank.verify');
+            Route::post('/users/{user}/bank-verification/reject', [AdminUserController::class, 'rejectBank'])->name('users.bank.reject');
 
             Route::get('/exchanges', [AdminExchangeController::class, 'index'])->name('exchanges.index');
             Route::get('/exchanges/{exchangeRequest}', [AdminExchangeController::class, 'show'])->name('exchanges.show');

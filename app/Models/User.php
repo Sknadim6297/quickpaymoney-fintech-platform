@@ -12,6 +12,8 @@ use LogicException;
 
 class User extends Authenticatable
 {
+    public const BANK_VERIFICATION_STATUSES = ['not_submitted', 'pending', 'verified', 'rejected'];
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
@@ -83,6 +85,15 @@ class User extends Authenticatable
         'totp_secret',
         'balance',
         'inr_balance',
+        'account_holder_name',
+        'bank_name',
+        'account_number',
+        'ifsc_code',
+        'branch_name',
+        'account_type',
+        'usdt_wallet_address',
+        'bank_verification_reason',
+        'bank_reviewed_by_user_id',
     ];
 
     /**
@@ -94,6 +105,8 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'bank_submitted_at' => 'datetime',
+            'bank_verified_at' => 'datetime',
             'password' => 'hashed',
             'totp_secret' => 'encrypted',
             'totp_enabled' => 'boolean',
@@ -138,6 +151,47 @@ class User extends Authenticatable
     public function supportTickets(): HasMany
     {
         return $this->hasMany(SupportTicket::class);
+    }
+
+    public function hasCompleteBankDetails(): bool
+    {
+        foreach ([
+            'account_holder_name',
+            'bank_name',
+            'account_number',
+            'ifsc_code',
+            'branch_name',
+            'account_type',
+        ] as $field) {
+            if (! is_string($this->{$field}) || trim($this->{$field}) === '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function bankVerificationStatus(): string
+    {
+        if (! $this->hasCompleteBankDetails()) {
+            return 'not_submitted';
+        }
+
+        return in_array($this->bank_verification_status, self::BANK_VERIFICATION_STATUSES, true)
+            && $this->bank_verification_status !== 'not_submitted'
+            ? $this->bank_verification_status
+            : 'pending';
+    }
+
+    public function maskedBankAccountNumber(): ?string
+    {
+        if (! filled($this->account_number)) {
+            return null;
+        }
+
+        $accountNumber = (string) $this->account_number;
+
+        return str_repeat('•', max(4, mb_strlen($accountNumber) - 4)).mb_substr($accountNumber, -4);
     }
 
     public function referrals(): HasMany
