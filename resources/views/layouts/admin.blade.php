@@ -16,8 +16,8 @@
             request()->routeIs('admin.dashboard') => 'Overview',
             request()->routeIs('admin.users.show') => 'User details',
             request()->routeIs('admin.users.index') => 'User management',
-            request()->routeIs('admin.exchanges.show') => 'Exchange details',
-            request()->routeIs('admin.exchanges.index') => 'Exchange management',
+            request()->routeIs('admin.exchanges.show') => 'Sell request details',
+            request()->routeIs('admin.exchanges.index') => 'Sell request management',
             request()->routeIs('admin.deposits.show') => 'Deposit review',
             request()->routeIs('admin.deposits.index') => 'Deposit management',
             request()->routeIs('admin.withdrawals.show') => 'Withdrawal review',
@@ -41,7 +41,7 @@
                 <span class="admin-nav-label">WORKSPACE</span>
                 <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" @if (request()->routeIs('admin.dashboard')) aria-current="page" @endif><i class="bi bi-grid-1x2-fill" aria-hidden="true"></i><span>Overview</span></a>
                 <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users*') ? 'active' : '' }}" @if (request()->routeIs('admin.users*')) aria-current="page" @endif><i class="bi bi-people-fill" aria-hidden="true"></i><span>Users</span></a>
-                <a href="{{ route('admin.exchanges.index') }}" class="{{ request()->routeIs('admin.exchanges*') ? 'active' : '' }}" @if (request()->routeIs('admin.exchanges*')) aria-current="page" @endif><i class="bi bi-arrow-left-right" aria-hidden="true"></i><span>Exchanges</span></a>
+                <a href="{{ route('admin.exchanges.index') }}" class="{{ request()->routeIs('admin.exchanges*') ? 'active' : '' }}" @if (request()->routeIs('admin.exchanges*')) aria-current="page" @endif><i class="bi bi-arrow-left-right" aria-hidden="true"></i><span>Sell Requests</span></a>
                 <a href="{{ route('admin.deposits.index') }}" class="{{ request()->routeIs('admin.deposits*') ? 'active' : '' }}" @if (request()->routeIs('admin.deposits*')) aria-current="page" @endif><i class="bi bi-wallet2" aria-hidden="true"></i><span>Deposits</span></a>
                 <a href="{{ route('admin.withdrawals.index') }}" class="{{ request()->routeIs('admin.withdrawals*') ? 'active' : '' }}" @if (request()->routeIs('admin.withdrawals*')) aria-current="page" @endif><i class="bi bi-bank" aria-hidden="true"></i><span>Withdrawals</span></a>
                 <a href="{{ route('admin.support-tickets.index') }}" class="{{ request()->routeIs('admin.support-tickets*') ? 'active' : '' }}" @if (request()->routeIs('admin.support-tickets*')) aria-current="page" @endif><i class="bi bi-headset" aria-hidden="true"></i><span>Support Tickets</span></a>

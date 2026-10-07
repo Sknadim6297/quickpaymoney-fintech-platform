@@ -11,6 +11,7 @@ use App\Models\WithdrawalRequest;
 use App\Support\Decimal;
 use Database\Seeders\ExchangeRateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -63,7 +64,7 @@ class WalletTest extends TestCase
             'admin_notes' => '',
         ])->assertRedirect();
 
-        $this->assertSame('0.00', $customer->fresh()->balance);
+        $this->assertSame('0.00000000', $customer->fresh()->balance);
         $this->assertSame('1725000.00', $customer->fresh()->inr_balance);
         $this->assertDatabaseHas('balance_ledger_entries', [
             'source_type' => 'exchange_request',
@@ -84,24 +85,30 @@ class WalletTest extends TestCase
     {
         $this->seed(ExchangeRateSeeder::class);
         $customer = User::factory()->create(['balance' => '15000.00']);
+        $customer->forceFill(['wallet_transaction_password_hash' => Hash::make('1234')])->save();
         $submissionKey = (string) Str::uuid();
 
-        $this->actingAs($customer, 'web')
-            ->post(route('exchange.requests.store'), [
+        $quote = $this->actingAs($customer, 'web')
+            ->post(route('exchange.requests.quote'), [
                 'submission_key' => $submissionKey,
                 'amount' => '15000.00',
-                'user_id' => 99999,
-                'inr_amount' => '1.00',
-                'exchange_rate' => '1.00',
-            ])
-            ->assertRedirect(route('profile.exchanges'));
+            ])->assertOk();
+        preg_match('/name="quote_token" value="([^"]+)"/', $quote->getContent(), $matches);
+        $this->assertNotEmpty($matches[1] ?? null);
+
+        $this->post(route('exchange.requests.store'), [
+            'submission_key' => $submissionKey,
+            'amount' => '15000.00',
+            'quote_token' => $matches[1],
+            'wallet_transaction_pin' => '1234',
+        ])->assertRedirect();
 
         $exchange = ExchangeRequest::query()->where('user_id', $customer->id)->firstOrFail();
         $this->assertSame('pending', $exchange->status);
         $this->assertSame('Prime Rate', $exchange->rate_plan_name);
         $this->assertSame(0, Decimal::compare((string) $exchange->exchange_rate, '115.00000000', 8));
         $this->assertSame(0, Decimal::compare((string) $exchange->inr_amount, '1725000.00', 2));
-        $this->assertSame('15000.00', $customer->fresh()->balance);
+        $this->assertSame('15000.00000000', $customer->fresh()->balance);
         $this->assertSame('0.00', $customer->fresh()->inr_balance);
 
         ExchangeRate::where('plan_key', 'prime')->update(['rate' => '1.00000000']);
@@ -109,33 +116,49 @@ class WalletTest extends TestCase
         $this->assertSame(0, Decimal::compare((string) $exchange->fresh()->inr_amount, '1725000.00', 2));
     }
 
-    public function test_sell_request_uses_exact_decimal_rate_and_rejects_sub_cent_usd_amounts(): void
+    public function test_sell_request_uses_exact_decimal_rate_and_accepts_eight_decimal_usdt_amounts(): void
     {
         $this->seed(ExchangeRateSeeder::class);
         ExchangeRate::where('plan_key', 'base')->update(['rate' => '100.12345678']);
         $customer = $this->userWithBalances(['balance' => '10.00']);
-        $this->actingAs($customer, 'web')
-            ->post(route('exchange.requests.store'), [
-                'submission_key' => (string) Str::uuid(),
-                'amount' => '1.23',
-            ])->assertRedirect(route('profile.exchanges'));
+        $submissionKey = (string) Str::uuid();
+        $quote = $this->actingAs($customer, 'web')->post(route('exchange.requests.quote'), [
+            'submission_key' => $submissionKey,
+            'amount' => '1.23',
+        ])->assertOk();
+        preg_match('/name="quote_token" value="([^"]+)"/', $quote->getContent(), $matches);
+        $this->post(route('exchange.requests.store'), [
+            'submission_key' => $submissionKey,
+            'amount' => '1.23',
+            'quote_token' => $matches[1],
+            'wallet_transaction_pin' => '1234',
+        ])->assertRedirect();
 
         $exchange = ExchangeRequest::query()->where('user_id', $customer->id)->firstOrFail();
         $this->assertSame(0, Decimal::compare((string) $exchange->exchange_rate, '100.12345678', 8));
         $this->assertSame(0, Decimal::compare((string) $exchange->inr_amount, '123.15', 2));
 
-        $this->from(route('exchange'))->post(route('exchange.requests.store'), [
-            'submission_key' => (string) Str::uuid(),
+        $microKey = (string) Str::uuid();
+        $microQuote = $this->post(route('exchange.requests.quote'), [
+            'submission_key' => $microKey,
             'amount' => '1.231',
-        ])->assertSessionHasErrors('amount');
-        $this->assertSame(1, ExchangeRequest::where('user_id', $customer->id)->count());
+        ])->assertOk();
+        preg_match('/name="quote_token" value="([^"]+)"/', $microQuote->getContent(), $microMatches);
+        $this->assertNotEmpty($microMatches[1] ?? null);
+        $this->post(route('exchange.requests.store'), [
+            'submission_key' => $microKey,
+            'amount' => '1.231',
+            'quote_token' => $microMatches[1],
+            'wallet_transaction_pin' => '1234',
+        ])->assertRedirect();
+        $this->assertSame(2, ExchangeRequest::where('user_id', $customer->id)->count());
     }
 
     public function test_withdrawal_reserves_inr_uses_saved_bank_snapshot_and_duplicate_submission_does_not_double_spend(): void
     {
         $customer = $this->customerWithBank(['inr_balance' => '2500.00']);
         $submissionKey = (string) Str::uuid();
-        $payload = ['submission_key' => $submissionKey, 'amount' => '1250.25'];
+        $payload = ['submission_key' => $submissionKey, 'amount' => '1250.25', 'payout_method' => 'bank', 'wallet_transaction_pin' => '1234'];
 
         $this->actingAs($customer, 'web')
             ->post(route('wallet.withdrawals.store'), $payload)
@@ -143,6 +166,19 @@ class WalletTest extends TestCase
         $request = WithdrawalRequest::query()->where('user_id', $customer->id)->firstOrFail();
         $this->assertSame('pending', $request->status);
         $this->assertSame('WDR-', substr($request->request_reference, 0, 4));
+        $this->get(route('wallet.withdrawals.show', $request))
+            ->assertOk()
+            ->assertSee('pending admin review')
+            ->assertDontSee('Download Invoice');
+        $this->actingAs($customer, 'web')
+            ->get(route('wallet.withdrawals.invoice', $request))
+            ->assertNotFound();
+        $this->get(route('wallet.withdrawals.create'))
+            ->assertOk()
+            ->assertSee('Available INR Balance')
+            ->assertSee('Wallet Transaction PIN')
+            ->assertSee('Account ••••••7890')
+            ->assertDontSee('1234567890');
         $this->assertSame('Bank of Example', $request->bank_name);
         $this->assertSame('1234567890', $request->bank_account_number);
         $this->assertSame('1249.75', $customer->fresh()->inr_balance);
@@ -154,7 +190,7 @@ class WalletTest extends TestCase
         $this->post(route('wallet.withdrawals.store'), $payload)->assertRedirect();
         $this->assertSame(1, WithdrawalRequest::where('user_id', $customer->id)->count());
         $this->assertSame('1249.75', $customer->fresh()->inr_balance);
-        $this->assertSame(1, InrLedgerEntry::where('source_type', 'withdrawal_request')->where('entry_type', 'debit')->count());
+        $this->assertSame(1, InrLedgerEntry::where('source_type', 'withdrawal_request')->where('entry_type', 'hold')->count());
     }
 
     public function test_withdrawal_reject_refunds_once_and_completion_requires_external_reference(): void
@@ -176,6 +212,7 @@ class WalletTest extends TestCase
             'status' => 'rejected',
             'transaction_reference' => '',
             'admin_notes' => 'Bank details could not be verified.',
+            'rejection_reason' => 'We could not verify the payout destination.',
         ])->assertRedirect();
         $this->assertSame('1000.00', $customer->fresh()->inr_balance);
         $this->assertDatabaseHas('inr_ledger_entries', [
@@ -185,6 +222,113 @@ class WalletTest extends TestCase
             'amount' => '300.00',
         ]);
         $this->assertDatabaseHas('audit_logs', ['event' => 'admin.withdrawal_rejected']);
+        $this->actingAs($customer, 'web')
+            ->get(route('wallet.withdrawals.show', $withdrawal))
+            ->assertOk()
+            ->assertSee('We could not verify the payout destination.');
+    }
+
+    public function test_cash_withdrawal_is_reserved_and_reviewed_without_bank_snapshots(): void
+    {
+        $customer = $this->userWithBalances(['inr_balance' => '500.00']);
+        $this->actingAs($customer, 'web')
+            ->post(route('wallet.withdrawals.store'), [
+                'submission_key' => (string) Str::uuid(),
+                'amount' => '125.00',
+                'payout_method' => 'cash',
+                'wallet_transaction_pin' => '1234',
+            ])->assertRedirect();
+
+        $withdrawal = WithdrawalRequest::query()->where('user_id', $customer->id)->firstOrFail();
+        $this->assertSame('cash', $withdrawal->payout_method);
+        $this->assertNull($withdrawal->bank_account_number);
+        $this->assertSame('375.00', $customer->fresh()->inr_balance);
+        $this->assertDatabaseHas('inr_ledger_entries', [
+            'source_type' => 'withdrawal_request',
+            'source_id' => $withdrawal->id,
+            'entry_type' => 'hold',
+            'amount' => '125.00',
+        ]);
+
+        $admin = $this->admin();
+        $this->actingAs($admin, 'admin')->withSession(['admin_2fa_verified' => true])
+            ->get(route('admin.withdrawals.show', $withdrawal))
+            ->assertOk()
+            ->assertSee('Cash handling')
+            ->assertSee('Cash')
+            ->assertDontSee('Account number');
+        $this->put(route('admin.withdrawals.update', $withdrawal), [
+            'status' => 'processing',
+            'transaction_reference' => '',
+            'admin_notes' => '',
+        ])->assertRedirect();
+        $this->put(route('admin.withdrawals.update', $withdrawal), [
+            'status' => 'completed',
+            'transaction_reference' => 'CASH-PAYOUT-125',
+            'admin_notes' => '',
+        ])->assertRedirect();
+
+        $this->assertSame('completed', $withdrawal->fresh()->status);
+        $this->assertNotNull($withdrawal->fresh()->completed_at);
+        $this->assertSame('375.00', $customer->fresh()->inr_balance);
+        $this->assertSame(1, InrLedgerEntry::where('source_id', $withdrawal->id)->where('entry_type', 'hold')->count());
+        $this->assertSame(1, InrLedgerEntry::where('source_id', $withdrawal->id)->where('entry_type', 'capture')->count());
+        $this->assertDatabaseHas('audit_logs', ['event' => 'admin.withdrawal_completed']);
+
+        $this->actingAs($customer, 'web')
+            ->get(route('wallet.withdrawals.invoice', $withdrawal))
+            ->assertOk()
+            ->assertSee('Withdrawal Invoice / Receipt')
+            ->assertSee($withdrawal->request_reference)
+            ->assertSee($customer->customer_id)
+            ->assertSee('CASH-PAYOUT-125')
+            ->assertSee('COMPLETED')
+            ->assertDontSee('wallet_transaction_password_hash')
+            ->assertDontSee('1234');
+        $this->actingAs(User::factory()->create(), 'web')
+            ->get(route('wallet.withdrawals.invoice', $withdrawal))
+            ->assertNotFound();
+    }
+
+    public function test_rejecting_a_new_withdrawal_releases_the_hold_once_and_shows_the_customer_reason(): void
+    {
+        $customer = $this->userWithBalances(['inr_balance' => '500.00']);
+        $this->actingAs($customer, 'web')->post(route('wallet.withdrawals.store'), [
+            'submission_key' => (string) Str::uuid(),
+            'amount' => '125.00',
+            'payout_method' => 'cash',
+            'wallet_transaction_pin' => '1234',
+        ])->assertRedirect();
+        $withdrawal = WithdrawalRequest::query()->where('user_id', $customer->id)->firstOrFail();
+        $this->assertSame('375.00', $customer->fresh()->inr_balance);
+
+        $admin = $this->admin();
+        $this->actingAs($admin, 'admin')->withSession(['admin_2fa_verified' => true]);
+        $this->put(route('admin.withdrawals.update', $withdrawal), [
+            'status' => 'rejected',
+            'rejection_reason' => '',
+        ])->assertSessionHasErrors('rejection_reason');
+        $this->assertSame('pending', $withdrawal->fresh()->status);
+        $this->put(route('admin.withdrawals.update', $withdrawal), [
+            'status' => 'rejected',
+            'rejection_reason' => 'Payout details require correction.',
+        ])->assertRedirect();
+
+        $this->assertSame('rejected', $withdrawal->fresh()->status);
+        $this->assertSame('500.00', $customer->fresh()->inr_balance);
+        $this->assertSame(1, InrLedgerEntry::where('source_id', $withdrawal->id)->where('entry_type', 'hold')->count());
+        $this->assertSame(1, InrLedgerEntry::where('source_id', $withdrawal->id)->where('entry_type', 'release')->count());
+        $this->put(route('admin.withdrawals.update', $withdrawal), [
+            'status' => 'rejected',
+            'rejection_reason' => 'Duplicate attempt.',
+        ])->assertUnprocessable();
+        $this->assertSame('500.00', $customer->fresh()->inr_balance);
+
+        $this->actingAs($customer, 'web')
+            ->get(route('wallet.withdrawals.show', $withdrawal))
+            ->assertOk()
+            ->assertSee('Payout details require correction.')
+            ->assertDontSee('Download Invoice');
     }
 
     public function test_withdrawal_rejects_zero_insufficient_balance_and_missing_bank_details(): void
@@ -196,10 +340,14 @@ class WalletTest extends TestCase
         $this->from(route('wallet'))->post(route('wallet.withdrawals.store'), [
             'submission_key' => $key,
             'amount' => '0.00',
+            'payout_method' => 'cash',
+            'wallet_transaction_pin' => '1234',
         ])->assertSessionHasErrors('amount');
         $this->from(route('wallet'))->post(route('wallet.withdrawals.store'), [
             'submission_key' => (string) Str::uuid(),
             'amount' => '10.01',
+            'payout_method' => 'cash',
+            'wallet_transaction_pin' => '1234',
         ])->assertSessionHasErrors('amount');
         $this->assertSame(0, WithdrawalRequest::count());
 
@@ -211,6 +359,8 @@ class WalletTest extends TestCase
         $this->post(route('wallet.withdrawals.store'), [
             'submission_key' => (string) Str::uuid(),
             'amount' => '0.01',
+            'payout_method' => 'cash',
+            'wallet_transaction_pin' => '1234',
         ])->assertSessionHasErrors('amount');
 
         $noBank = $this->userWithBalances(['inr_balance' => '10.00']);
@@ -218,8 +368,18 @@ class WalletTest extends TestCase
             ->post(route('wallet.withdrawals.store'), [
                 'submission_key' => (string) Str::uuid(),
                 'amount' => '1.00',
+                'payout_method' => 'bank',
+                'wallet_transaction_pin' => '1234',
             ])->assertSessionHasErrors('bank');
-        $this->assertSame(0, WithdrawalRequest::count());
+        $this->post(route('wallet.withdrawals.store'), [
+            'submission_key' => (string) Str::uuid(),
+            'amount' => '1.00',
+            'payout_method' => 'cash',
+            'wallet_transaction_pin' => '1234',
+        ])->assertRedirect();
+        $this->assertSame(1, WithdrawalRequest::where('user_id', $noBank->id)->count());
+        $this->assertSame('cash', WithdrawalRequest::where('user_id', $noBank->id)->value('payout_method'));
+        $this->assertNull(WithdrawalRequest::where('user_id', $noBank->id)->value('bank_account_number'));
     }
 
     public function test_wallet_and_withdrawal_details_are_customer_scoped_and_admin_only_can_change_status(): void
@@ -312,6 +472,7 @@ class WalletTest extends TestCase
             'user_id' => $user->id,
             'submission_key' => (string) Str::uuid(),
             'amount' => $amount,
+            'payout_method' => 'bank',
             'bank_account_holder' => 'Wallet Customer',
             'bank_name' => 'Bank of Example',
             'bank_account_number' => '1234567890',
@@ -370,6 +531,7 @@ class WalletTest extends TestCase
 
         $user = User::factory()->create(['balance' => $balance, ...$attributes]);
         $user->forceFill([
+            'wallet_transaction_password_hash' => Hash::make('1234'),
             'inr_balance' => $inrBalance,
             ...($bankVerificationStatus ? ['bank_verification_status' => $bankVerificationStatus] : []),
         ])->save();

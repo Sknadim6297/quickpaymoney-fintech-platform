@@ -15,9 +15,9 @@ class ExchangeRateSeeder extends Seeder
                 'name' => 'Base Rate',
                 'rate' => '100.00000000',
                 'minimum_amount' => '0.00',
-                'maximum_amount' => '9999.99',
+                'maximum_amount' => '9999.99999999',
                 'label' => 'LIVE RATE',
-                'description' => 'Standard USDT to INR reference rate.',
+                'description' => 'Applicable for sell amounts below 10,000 USDT.',
                 'icon' => 'bi-currency-exchange',
             ],
             [
@@ -25,9 +25,9 @@ class ExchangeRateSeeder extends Seeder
                 'name' => 'Prime Rate',
                 'rate' => '115.00000000',
                 'minimum_amount' => '10000.00',
-                'maximum_amount' => '19999.99',
+                'maximum_amount' => '19999.99999999',
                 'label' => null,
-                'description' => 'Preferred reference rate for qualifying deposits.',
+                'description' => 'Applicable for sell amounts from 10,000 to 19,999.99999999 USDT.',
                 'icon' => 'bi-diamond-fill',
             ],
             [
@@ -37,7 +37,7 @@ class ExchangeRateSeeder extends Seeder
                 'minimum_amount' => '20000.00',
                 'maximum_amount' => null,
                 'label' => null,
-                'description' => 'VIP reference rate for qualifying deposits.',
+                'description' => 'Applicable for sell amounts of 20,000 USDT or more.',
                 'icon' => 'bi-gem',
             ],
         ] as $plan) {

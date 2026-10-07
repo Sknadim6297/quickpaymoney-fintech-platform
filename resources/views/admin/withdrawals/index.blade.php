@@ -13,19 +13,27 @@
         </form>
         <div class="portal-table-wrap admin-table-wrap">
             <table class="portal-table admin-table">
-                <thead><tr><th>Reference</th><th>Customer</th><th>Amount (INR)</th><th>Status</th><th>Requested</th><th></th></tr></thead>
+                <thead><tr><th>Reference</th><th>Customer</th><th>Customer ID</th><th>Amount (INR)</th><th>Destination</th><th>Status</th><th>Requested</th><th></th></tr></thead>
                 <tbody>
                     @forelse ($withdrawals as $withdrawal)
                         <tr>
                             <td><span class="admin-id">{{ $withdrawal->request_reference }}</span></td>
                             <td><div class="admin-table-primary">{{ $withdrawal->user->name }}</div><div class="admin-table-secondary">{{ $withdrawal->user->email }}</div></td>
+                            <td>{{ $withdrawal->user->customer_id }}</td>
                             <td>{{ \App\Support\Money::formatInr((string) $withdrawal->amount) }}</td>
+                            <td>
+                                @if ($withdrawal->payout_method === 'bank')
+                                    {{ $withdrawal->bank_name }} · ending {{ substr((string) $withdrawal->bank_account_number, -4) }}
+                                @else
+                                    Cash
+                                @endif
+                            </td>
                             <td><span class="portal-badge {{ $withdrawal->status }}">{{ ucfirst($withdrawal->status) }}</span></td>
                             <td>{{ $withdrawal->requested_at->format('M j, Y · H:i') }}</td>
                             <td class="admin-table-action"><a class="admin-icon-button" href="{{ route('admin.withdrawals.show', $withdrawal) }}" aria-label="Review {{ $withdrawal->request_reference }}"><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="6"><div class="admin-empty-state"><span><i class="bi bi-inbox" aria-hidden="true"></i></span><strong>No withdrawal requests</strong><p>Requests matching these filters will appear here.</p></div></td></tr>
+                        <tr><td colspan="8"><div class="admin-empty-state"><span><i class="bi bi-inbox" aria-hidden="true"></i></span><strong>No withdrawal requests</strong><p>Requests matching these filters will appear here.</p></div></td></tr>
                     @endforelse
                 </tbody>
             </table>

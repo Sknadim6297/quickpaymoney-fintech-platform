@@ -2,8 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\ExchangeRequest;
+use App\Models\AuditLog;
 use App\Models\ExchangeRate;
+use App\Models\ExchangeRequest;
 use App\Models\User;
 use App\Support\Totp;
 use Database\Seeders\AdminSeeder;
@@ -167,6 +168,7 @@ class AuthenticationAndPortalTest extends TestCase
 
         $this->actingAs($user, 'web')->get(route('profile'))
             ->assertOk()
+            ->assertSee('aria-label="Log out"', false)
             ->assertSee('Account Balance')
             ->assertSee('Total Reward')
             ->assertSee('ID: <strong>'.$user->customer_id.'</strong>', false)
@@ -176,11 +178,16 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertSee('Sell Now')
             ->assertSee('Bank Details')
             ->assertSee('Exchange History')
+            ->assertSee('Sell requests and their current status')
             ->assertSee('Referrals History')
             ->assertSee('Reset Password')
             ->assertSee('Not Added')
             ->assertDontSee('Deposit History')
             ->assertDontSee('98765.43210000');
+        $this->actingAs($user, 'web')->get(route('exchange'))
+            ->assertOk()
+            ->assertDontSee('aria-label="Sign out"', false)
+            ->assertDontSee('header-logout-form');
         $this->assertMatchesRegularExpression('/^SKNA[0-9]{6}$/', $user->customer_id);
 
         $this->actingAs($user, 'web')->get(route('profile.bank'))
@@ -319,7 +326,7 @@ class AuthenticationAndPortalTest extends TestCase
         ]);
         $this->assertStringNotContainsString(
             '123456789012',
-            json_encode(\App\Models\AuditLog::where('event', 'user.bank_details_submitted')->firstOrFail()->metadata)
+            json_encode(AuditLog::where('event', 'user.bank_details_submitted')->firstOrFail()->metadata)
         );
 
         $walletDetails = [
@@ -359,6 +366,7 @@ class AuthenticationAndPortalTest extends TestCase
         $otherUser = User::factory()->create();
         $ownRequest = ExchangeRequest::create([
             'user_id' => $user->id,
+            'request_reference' => 'OWN-REFERENCE',
             'usdt_amount' => '5.12345678',
             'exchange_rate' => '101.25000000',
             'inr_amount' => '518.75',
@@ -367,6 +375,7 @@ class AuthenticationAndPortalTest extends TestCase
         ]);
         $otherRequest = ExchangeRequest::create([
             'user_id' => $otherUser->id,
+            'request_reference' => 'OTHER-PRIVATE-REFERENCE',
             'usdt_amount' => '98765.43210000',
             'exchange_rate' => '91.00000000',
             'inr_amount' => '8987654.32',
@@ -388,6 +397,24 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertSee('historical values recorded');
         $this->get(route('profile.exchanges.show', $otherRequest))
             ->assertNotFound();
+    }
+
+    public function test_exchange_history_empty_states_offer_sell_or_clear_filter_actions(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user, 'web')
+            ->get(route('profile.exchanges'))
+            ->assertOk()
+            ->assertSee('No exchange requests yet')
+            ->assertSee('Sell USDT')
+            ->assertSee(route('exchange.sell'));
+
+        $this->get(route('profile.exchanges', ['search' => 'missing-reference']))
+            ->assertOk()
+            ->assertSee('No matching exchange requests')
+            ->assertSee('Clear filters')
+            ->assertDontSee('Sell USDT');
     }
 
     public function test_referrals_pages_show_real_counts_and_privacy_safe_history(): void
@@ -461,17 +488,19 @@ class AuthenticationAndPortalTest extends TestCase
         $this->actingAs($user, 'web')->get(route('logout'))
             ->assertMethodNotAllowed();
         $this->post(route('logout'))
-            ->assertRedirect(route('home'));
+            ->assertRedirect(route('landing'));
         $this->assertGuest('web');
     }
 
     public function test_home_header_has_guest_controls_and_authenticated_support_wallet_icons(): void
     {
-        $this->get(route('home'))
+        $this->get(route('landing'))
             ->assertOk()
             ->assertSee(route('login'))
-            ->assertDontSee(route('register'))
+            ->assertSee(route('register'))
+            ->assertSee('LIVE EXCHANGE PLATFORM')
             ->assertDontSee('data-user-menu-toggle');
+        $this->get(route('home'))->assertRedirect(route('login'));
 
         $this->get(route('login'))
             ->assertOk()
@@ -492,7 +521,8 @@ class AuthenticationAndPortalTest extends TestCase
 
     public function test_homepage_restores_original_demo_rate_stats_and_conversion_rows(): void
     {
-        $response = $this->get(route('home'))
+        $user = User::factory()->create(['balance' => '0.00000000']);
+        $response = $this->actingAs($user, 'web')->get(route('home'))
             ->assertOk()
             ->assertSee('LIVE RATE')
             ->assertSee('1 USDT =')
@@ -516,10 +546,11 @@ class AuthenticationAndPortalTest extends TestCase
 
     public function test_homepage_formats_live_rate_for_display_without_changing_stored_precision(): void
     {
+        $user = User::factory()->create(['balance' => '0.00000000']);
         $rate = ExchangeRate::where('plan_key', 'base')->firstOrFail();
         $rate->update(['rate' => '100.00000000']);
 
-        $this->get(route('home'))
+        $this->actingAs($user, 'web')->get(route('home'))
             ->assertOk()
             ->assertSee('>100</span>', false)
             ->assertSee('family=Poppins:wght@400;500;600;700');
@@ -535,7 +566,7 @@ class AuthenticationAndPortalTest extends TestCase
         $this->assertSame(100.5, (float) $rate->fresh()->rate);
     }
 
-    public function test_exchange_page_restores_original_demo_rates_and_inert_action_cards(): void
+    public function test_exchange_page_restores_demo_rates_and_sell_action_opens_the_sell_flow(): void
     {
         $response = $this->get(route('exchange'))
             ->assertOk()
@@ -551,18 +582,47 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertSee('Earn Together')
             ->assertSee('Live Rates')
             ->assertSee('₹100')
-            ->assertSee('10,000 – 19,999.99 USDT')
+            ->assertSee('10,000 – 19,999.99999999 USDT')
             ->assertSee('₹115')
             ->assertSee('20,000+ USDT')
             ->assertSee('₹120')
             ->assertSee('Trade ')
             ->assertSee('Reliable');
 
-        $this->assertSame(3, substr_count($response->getContent(), 'aria-disabled="true"'));
-        $this->assertStringContainsString('href="' . route('deposit.create') . '"', $response->getContent());
+        $this->assertSame(1, substr_count($response->getContent(), 'aria-disabled="true"'));
+        $this->assertStringContainsString('href="'.route('login').'"', $response->getContent());
+        $this->assertStringContainsString('href="'.route('deposit.create').'"', $response->getContent());
         $this->assertStringNotContainsString('Not available yet', $response->getContent());
         $this->assertStringNotContainsString('No settlement available', $response->getContent());
         $this->assertStringNotContainsString('Rates unavailable', $response->getContent());
+    }
+
+    public function test_guest_home_shows_landing_site_with_named_auth_links(): void
+    {
+        $this->get(route('landing'))
+            ->assertOk()
+            ->assertSee('LIVE EXCHANGE PLATFORM')
+            ->assertSee('Convert Your')
+            ->assertSee('USDT')
+            ->assertSee('href="'.route('login').'"', false)
+            ->assertSee('href="'.route('register').'"', false)
+            ->assertSee(asset('assets/landing/css/landing.css'))
+            ->assertSee(asset('assets/landing/js/landing.js'))
+            ->assertDontSee('LIVE PLATFORM STATS');
+    }
+
+    public function test_authenticated_customer_can_open_withdrawal_from_home_action(): void
+    {
+        $user = User::factory()->create(['balance' => '0.00000000']);
+        $this->actingAs($user, 'web');
+
+        $this->get(route('exchange'))
+            ->assertOk()
+            ->assertSee('href="'.route('wallet.withdrawals.create').'"', false);
+
+        $this->get(route('wallet.withdrawals.create'))
+            ->assertOk()
+            ->assertSee('Withdraw INR');
     }
 
     public function test_exchange_page_formats_every_rate_card_and_uses_visible_prime_icon(): void
@@ -600,11 +660,13 @@ class AuthenticationAndPortalTest extends TestCase
 
         $this->actingAs($user, 'web')
             ->post(route('logout'))
-            ->assertRedirect(route('home'))
+            ->assertRedirect(route('landing'))
             ->assertSessionHas('status', 'Signed out successfully.');
 
         $this->assertGuest('web');
-        $this->get(route('home'))->assertSee('Signed out successfully.');
+        $this->get(route('landing'))
+            ->assertSee('LIVE EXCHANGE PLATFORM')
+            ->assertSee('Signed out successfully.');
     }
 
     public function test_admin_two_factor_completion_redirects_to_admin_dashboard_not_stale_user_intended_url(): void
@@ -1053,7 +1115,7 @@ class AuthenticationAndPortalTest extends TestCase
             'admin_notes' => 'USD debited and INR credited from the saved rate snapshot.',
         ])->assertSessionHas('status');
         $this->assertDatabaseHas('exchange_requests', ['id' => $exchange->id, 'status' => 'completed']);
-        $this->assertSame('0.00', $user->fresh()->balance);
+        $this->assertSame('0.00000000', $user->fresh()->balance);
         $this->assertSame('2250.00', $user->fresh()->inr_balance);
     }
 
@@ -1120,7 +1182,8 @@ class AuthenticationAndPortalTest extends TestCase
         $this->assertDatabaseHas('exchange_rates', ['pair' => 'USDT_INR', 'rate' => '90.12345678']);
         $this->assertDatabaseHas('audit_logs', ['event' => 'admin.exchange_rate_updated']);
         $this->get(route('admin.rates.edit'))->assertOk()->assertSee('Recent rate changes')->assertSee('90.12345678');
-        $this->get(route('home'))->assertOk()->assertSee('90.12345678');
+        $customer = User::factory()->create(['balance' => '0.00000000']);
+        $this->actingAs($customer, 'web')->get(route('home'))->assertOk()->assertSee('90.12345678');
         $this->get(route('exchange'))->assertOk()->assertSee('90.12345678');
     }
 

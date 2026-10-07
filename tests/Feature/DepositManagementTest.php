@@ -12,6 +12,7 @@ use Database\Seeders\ExchangeRateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class DepositManagementTest extends TestCase
@@ -203,7 +204,7 @@ class DepositManagementTest extends TestCase
         $this->assertSame('25.50', $deposit->amount);
         $this->assertMatchesRegularExpression('/^REF-\d{8}-[A-Z0-9]{12}$/', $deposit->deposit_id);
         Storage::disk('local')->assertExists($deposit->proof_path);
-        $this->assertSame('0.00', $customer->fresh()->balance);
+        $this->assertSame('0.00000000', $customer->fresh()->balance);
         $this->assertDatabaseMissing('balance_ledger_entries', ['deposit_id' => $deposit->id]);
 
         $this->post(route('deposit.store'), $payload)->assertRedirect(route('deposits.show', $deposit));
@@ -219,7 +220,8 @@ class DepositManagementTest extends TestCase
             ->assertOk()
             ->assertSee($deposit->deposit_id)
             ->assertSee('Your deposit request has been submitted successfully.')
-            ->assertSee(route('deposits.proof', $deposit));
+            ->assertSee(route('deposits.proof', $deposit))
+            ->assertDontSee('Invoice');
         $this->get(route('deposits.proof', $deposit))->assertOk();
     }
 
@@ -247,14 +249,14 @@ class DepositManagementTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('status', 'Deposit request updated.');
         $this->assertSame('approved', $first->fresh()->status);
-        $this->assertSame('50.25', $customer->fresh()->balance);
+        $this->assertSame('50.25000000', $customer->fresh()->balance);
         $this->assertSame(1, BalanceLedgerEntry::where('deposit_id', $first->id)->count());
         $this->assertDatabaseHas('audit_logs', ['event' => 'admin.deposit_approved']);
 
         $this->put(route('admin.deposits.update', $first), ['status' => 'approved'])
             ->assertRedirect()
             ->assertSessionHas('status', 'This deposit was already processed; no additional balance change was made.');
-        $this->assertSame('50.25', $customer->fresh()->balance);
+        $this->assertSame('50.25000000', $customer->fresh()->balance);
         $this->assertSame(1, BalanceLedgerEntry::where('deposit_id', $first->id)->count());
 
         $this->put(route('admin.deposits.update', $second), [
@@ -263,7 +265,7 @@ class DepositManagementTest extends TestCase
         ])->assertRedirect();
         $this->assertSame('rejected', $second->fresh()->status);
         $this->assertSame('Payment could not be verified externally.', $second->fresh()->rejection_reason);
-        $this->assertSame('50.25', $customer->fresh()->balance);
+        $this->assertSame('50.25000000', $customer->fresh()->balance);
         $this->assertSame(1, BalanceLedgerEntry::where('user_id', $customer->id)->count());
 
         $this->expectException(\LogicException::class);
@@ -283,7 +285,8 @@ class DepositManagementTest extends TestCase
             ->assertOk()
             ->assertSee('Deposit History')
             ->assertSee($deposit->deposit_id)
-            ->assertSee(route('deposits.show', $deposit));
+            ->assertSee(route('deposits.show', $deposit))
+            ->assertDontSee('Invoice');
 
         $this->get(route('deposits.show', $deposit))->assertOk();
         $this->get(route('deposits.proof', $deposit))->assertOk();
@@ -419,7 +422,7 @@ class DepositManagementTest extends TestCase
             ->assertSee('$125.40')
             ->assertSee('Not a wallet')
             ->assertSee(route('wallet'))
-            ->assertSee(route('logout'))
+            ->assertDontSee(route('logout'))
             ->assertSee(route('deposit.create'))
             ->assertSee('aria-label="Contact support"', false);
 
@@ -444,9 +447,9 @@ class DepositManagementTest extends TestCase
     private function makeDeposit(User $user, string $amount, string $reference, ?string $proofPath = null): Deposit
     {
         return Deposit::create([
-            'deposit_id' => 'REF-'.now()->format('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(12)),
+            'deposit_id' => 'REF-'.now()->format('Ymd').'-'.strtoupper(Str::random(12)),
             'user_id' => $user->id,
-            'submission_key' => (string) \Illuminate\Support\Str::uuid(),
+            'submission_key' => (string) Str::uuid(),
             'amount' => $amount,
             'transaction_reference' => $reference,
             'proof_path' => $proofPath,

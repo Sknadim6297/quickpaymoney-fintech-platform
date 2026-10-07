@@ -206,6 +206,7 @@
 
 .portal-badge.active,
 .portal-badge.completed,
+.portal-badge.approved,
 .portal-badge.verified {
     background: rgba(25, 135, 84, .2);
     color: #6cda9b;

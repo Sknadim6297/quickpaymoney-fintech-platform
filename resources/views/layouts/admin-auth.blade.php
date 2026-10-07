@@ -11,7 +11,7 @@
 @section('content')
     <div class="admin-auth-shell">
         <header class="admin-auth-header">
-            <a href="{{ route('home') }}" class="admin-auth-brand" aria-label="Quick PayMoney home">
+            <a href="{{ route('landing') }}" class="admin-auth-brand" aria-label="Quick PayMoney home">
                 <span class="logo">Quick Pay<span class="logo-x">Money</span></span>
             </a>
             <span class="admin-auth-secure"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i> SECURE ADMIN PORTAL</span>

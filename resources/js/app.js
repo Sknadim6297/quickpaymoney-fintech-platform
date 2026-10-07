@@ -2,6 +2,7 @@ import './bootstrap';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import '../css/notifications.css';
+import './wallet-pin';
 
 const notifications = document.getElementById('quickpay-notifications');
 

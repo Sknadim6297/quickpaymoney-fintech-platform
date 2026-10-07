@@ -19,9 +19,11 @@ class ExchangeStatusUpdated extends Notification
 
     public function toArray(object $notifiable): array
     {
+        $reference = $this->exchangeRequest->request_reference ?? 'exchange request';
+
         return [
-            'message' => 'Your exchange request #'.$this->exchangeRequest->id.' is now '.$this->exchangeRequest->status.'.',
-            'exchange_request_id' => $this->exchangeRequest->id,
+            'message' => 'Your sell request '.$reference.' is now '.$this->exchangeRequest->status.'.',
+            'request_reference' => $this->exchangeRequest->request_reference,
             'status' => $this->exchangeRequest->status,
         ];
     }

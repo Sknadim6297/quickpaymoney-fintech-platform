@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\WithdrawalRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -164,15 +165,21 @@ class BankVerificationTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_withdrawal_requires_complete_verified_bank_details_and_sufficient_inr_balance(): void
+    public function test_cash_withdrawal_is_available_while_bank_withdrawal_requires_verification(): void
     {
         $pending = $this->customerWithBank('pending', ['inr_balance' => '1000.00']);
         $this->actingAs($pending, 'web')
             ->get(route('wallet'))
             ->assertOk()
-            ->assertSee('Your bank details are pending verification.')
-            ->assertSee('wallet-disabled-action', false)
-            ->assertDontSee('id="withdrawal-form"', false);
+            ->assertSee('wallet-withdraw-action', false)
+            ->assertSee(route('wallet.withdrawals.create'));
+        $this->get(route('wallet.withdrawals.create'))
+            ->assertOk()
+            ->assertSee('Cash')
+            ->assertSee('No bank information required.')
+            ->assertSee('Bank Account')
+            ->assertSee('Pending verification')
+            ->assertSee('disabled', false);
 
         $this->from(route('wallet'))
             ->post(route('wallet.withdrawals.store'), $this->withdrawalPayload())
@@ -274,6 +281,7 @@ class BankVerificationTest extends TestCase
             'bank_verification_status' => $status,
             'bank_submitted_at' => now(),
             'inr_balance' => $extra['inr_balance'] ?? '0.00',
+            'wallet_transaction_password_hash' => Hash::make('1234'),
         ])->save();
 
         return $user;
@@ -293,6 +301,8 @@ class BankVerificationTest extends TestCase
         return [
             'submission_key' => (string) Str::uuid(),
             'amount' => '100.00',
+            'payout_method' => 'bank',
+            'wallet_transaction_pin' => '1234',
         ];
     }
 }

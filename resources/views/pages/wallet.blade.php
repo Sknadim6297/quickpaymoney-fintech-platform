@@ -45,26 +45,17 @@
                 <a class="profile-action-button profile-bank-action" href="{{ route('deposit.create') }}">
                     <i class="bi bi-plus-circle" aria-hidden="true"></i><span>Add Funds</span><i class="bi bi-arrow-right" aria-hidden="true"></i>
                 </a>
-                @if (\App\Support\Decimal::compare((string) $user->inr_balance, '0', 2) > 0 && $canWithdraw)
-                    <a class="profile-action-button profile-sell-action wallet-withdraw-action" href="#withdrawal-form">
+                @if ($canWithdraw)
+                    <a class="profile-action-button profile-sell-action wallet-withdraw-action" href="{{ route('wallet.withdrawals.create') }}">
                         <i class="bi bi-bank" aria-hidden="true"></i><span>Withdraw INR</span><i class="bi bi-arrow-right" aria-hidden="true"></i>
                     </a>
                 @else
                     <button class="profile-action-button wallet-disabled-action" type="button" disabled>
                         <i class="bi bi-bank" aria-hidden="true"></i><span>Withdraw INR</span><i class="bi bi-arrow-right" aria-hidden="true"></i>
                     </button>
+                    <p class="wallet-inline-notice">No INR balance available for withdrawal.</p>
                 @endif
             </div>
-
-            @if (\App\Support\Decimal::compare((string) $user->inr_balance, '0', 2) <= 0)
-                <p class="wallet-inline-notice">No INR balance available for withdrawal.</p>
-            @elseif (! $hasBankDetails)
-                <p class="wallet-inline-notice">Add complete bank details in <a href="{{ route('profile.bank') }}">Profile</a> before withdrawing.</p>
-            @elseif ($bankVerificationStatus === 'pending')
-                <p class="wallet-inline-notice">Your bank details are pending verification.</p>
-            @elseif ($bankVerificationStatus === 'rejected')
-                <p class="wallet-inline-notice">Your bank details were not verified. Please update them and submit again.</p>
-            @endif
 
             <section class="portal-card wallet-history-card" id="deposit-history" aria-labelledby="deposit-history-title">
                 <div class="wallet-section-heading">
@@ -113,6 +104,7 @@
             <section class="portal-card wallet-history-card" id="withdrawal-history" aria-labelledby="withdrawal-history-title">
                 <div class="wallet-section-heading">
                     <h2 id="withdrawal-history-title"><i class="bi bi-arrow-up-right-circle" aria-hidden="true"></i> Withdrawal History</h2>
+                    <a class="wallet-details-link" href="{{ route('wallet.withdrawals.create') }}">Withdraw INR</a>
                 </div>
                 <form class="wallet-filters wallet-withdrawal-filter" method="GET" action="{{ route('wallet') }}">
                     @if (request()->filled('search'))<input type="hidden" name="search" value="{{ request('search') }}">@endif
@@ -127,34 +119,23 @@
                     <button class="wallet-filter-button" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i><span>Filter</span></button>
                 </form>
 
-                @if ($canWithdraw && \App\Support\Decimal::compare((string) $user->inr_balance, '0', 2) > 0)
-                    <form class="wallet-withdrawal-form" id="withdrawal-form" method="POST" action="{{ route('wallet.withdrawals.store') }}">
-                        @csrf
-                        <input type="hidden" name="submission_key" value="{{ $withdrawalSubmissionKey }}">
-                        <label for="withdrawal-amount">Withdrawal Amount (INR)</label>
-                        <input class="portal-input" id="withdrawal-amount" name="amount" type="number" min="0.01" max="{{ $user->inr_balance }}" step="0.01" inputmode="decimal" value="{{ old('amount') }}" required>
-                        @error('amount')<span class="wallet-field-error">{{ $message }}</span>@enderror
-                        <div class="wallet-bank-destination">
-                            <i class="bi bi-bank" aria-hidden="true"></i>
-                            <span>{{ $user->bank_name }} · {{ $user->account_holder_name }} · ending {{ substr((string) $user->account_number, -4) }}</span>
-                        </div>
-                        <button class="profile-action-button profile-sell-action wallet-withdraw-submit" type="submit">
-                            <i class="bi bi-arrow-up-right-circle" aria-hidden="true"></i><span>Request withdrawal</span><i class="bi bi-arrow-right" aria-hidden="true"></i>
-                        </button>
-                    </form>
-                @endif
-
                 @forelse ($withdrawals as $withdrawal)
                     <article class="wallet-history-item">
                         <div class="wallet-history-main">
                             <div><span class="wallet-history-label">Reference ID</span><strong>{{ $withdrawal->request_reference }}</strong></div>
                             <div><span class="wallet-history-label">Amount (INR)</span><strong>{{ \App\Support\Money::formatInr((string) $withdrawal->amount) }}</strong></div>
-                            <div><span class="wallet-history-label">Bank</span><strong>{{ $withdrawal->bank_name }} · ending {{ substr((string) $withdrawal->bank_account_number, -4) }}</strong></div>
+                            <div><span class="wallet-history-label">Payment Method</span><strong>{{ $withdrawal->payout_method === 'bank' ? 'Bank Account' : 'Cash' }}</strong></div>
+                            @if ($withdrawal->payout_method === 'bank')
+                                <div><span class="wallet-history-label">Bank</span><strong>{{ $withdrawal->bank_name }} · account {{ str_repeat('•', max(0, mb_strlen((string) $withdrawal->bank_account_number) - 4)).substr((string) $withdrawal->bank_account_number, -4) }}</strong></div>
+                            @endif
                             <div><span class="wallet-history-label">Requested Date</span><strong>{{ $withdrawal->requested_at->format('M j, Y · H:i') }}</strong></div>
                         </div>
                         <div class="wallet-history-footer">
                             <span class="portal-badge {{ $withdrawal->status }}">{{ ucfirst($withdrawal->status) }}</span>
                             <a class="wallet-details-link" href="{{ route('wallet.withdrawals.show', $withdrawal) }}">Details <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+                            @if ($withdrawal->status === 'completed')
+                                <a class="wallet-details-link" href="{{ route('wallet.withdrawals.invoice', $withdrawal) }}">Download Invoice <i class="bi bi-download" aria-hidden="true"></i></a>
+                            @endif
                         </div>
                     </article>
                 @empty
@@ -164,8 +145,10 @@
                     <div class="wallet-pagination">{{ $withdrawals->links() }}</div>
                 @endif
             </section>
+            <p class="portal-status" role="status" data-pin-success-message hidden></p>
         </main>
 
+        @include('partials.wallet-pin-modal', ['user' => $user, 'maskedEmail' => mb_substr($user->email, 0, 1).'***@'.substr(strstr($user->email, '@'), 1)])
         @include('partials.bottom-nav', ['active' => 'wallet', 'variant' => 'wallet', 'appShell' => true])
     </div>
 @endsection

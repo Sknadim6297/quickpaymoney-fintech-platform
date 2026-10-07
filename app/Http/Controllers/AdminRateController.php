@@ -201,10 +201,10 @@ class AdminRateController extends Controller
             'minimum_amount' => [
                 'required',
                 'string',
-                'regex:/^\d{1,18}(?:\.\d{1,2})?$/',
+                'regex:/^\d{1,18}(?:\.\d{1,8})?$/',
                 Rule::unique('exchange_rates', 'minimum_amount')->ignore($plan?->id),
             ],
-            'maximum_amount' => ['nullable', 'string', 'regex:/^\d{1,18}(?:\.\d{1,2})?$/'],
+            'maximum_amount' => ['nullable', 'string', 'regex:/^\d{1,18}(?:\.\d{1,8})?$/'],
             'label' => ['nullable', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
             'icon' => ['required', 'string', Rule::in(self::ICONS)],
@@ -219,14 +219,14 @@ class AdminRateController extends Controller
 
         if (
             $validated['maximum_amount'] !== null
-            && \App\Support\Decimal::compare($validated['maximum_amount'], $validated['minimum_amount'], 2) < 0
+            && \App\Support\Decimal::compare($validated['maximum_amount'], $validated['minimum_amount'], 8) < 0
         ) {
             throw ValidationException::withMessages([
                 'maximum_amount' => 'The maximum amount must be greater than or equal to the minimum amount.',
             ]);
         }
 
-        if ($plan?->plan_key === 'base' && $validated['minimum_amount'] !== '0.00') {
+        if ($plan?->plan_key === 'base' && \App\Support\Decimal::compare($validated['minimum_amount'], '0', 8) !== 0) {
             throw ValidationException::withMessages([
                 'minimum_amount' => 'The Base Rate minimum amount must remain 0.',
             ]);
@@ -251,13 +251,13 @@ class AdminRateController extends Controller
                 || \App\Support\Decimal::compare(
                     (string) $plan->minimum_amount,
                     $candidate['maximum_amount'],
-                    2,
+                    8,
                 ) <= 0;
             $planStartsBeforeCandidateEnds = $plan->maximum_amount === null
                 || \App\Support\Decimal::compare(
                     (string) $plan->maximum_amount,
                     $candidate['minimum_amount'],
-                    2,
+                    8,
                 ) >= 0;
 
             if ($candidateStartsBeforePlanEnds && $planStartsBeforeCandidateEnds) {
@@ -284,7 +284,7 @@ class AdminRateController extends Controller
 
         $whole = ltrim($whole, '0');
 
-        return ($whole === '' ? '0' : $whole).'.'.str_pad($fraction, 2, '0');
+        return ($whole === '' ? '0' : $whole).'.'.str_pad($fraction, 8, '0');
     }
 
     private function savePlanTransaction(callable $callback, array $validated, ?int $ignoreId = null): void

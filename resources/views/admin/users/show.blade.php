@@ -15,6 +15,7 @@
                 <div><dt>Registered</dt><dd>{{ $user->created_at->format('M j, Y · H:i') }}</dd></div>
                 <div><dt>Email verified</dt><dd><span class="portal-badge {{ $user->hasVerifiedEmail() ? 'verified' : 'pending' }}"><span class="admin-badge-dot"></span>{{ $user->hasVerifiedEmail() ? 'Verified' : 'Not verified' }}</span></dd></div>
                 <div><dt>Verification status</dt><dd><span class="portal-badge {{ $user->verification_status }}"><span class="admin-badge-dot"></span>{{ ucfirst($user->verification_status) }}</span></dd></div>
+                <div><dt>Wallet Transaction PIN</dt><dd><span class="portal-badge {{ $user->hasWalletTransactionPin() ? 'verified' : 'inactive' }}">{{ $user->hasWalletTransactionPin() ? 'Configured' : 'Not Configured' }}</span></dd></div>
             </dl>
         </section>
         <section class="admin-panel">

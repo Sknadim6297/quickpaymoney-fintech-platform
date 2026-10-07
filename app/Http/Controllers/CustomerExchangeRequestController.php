@@ -2,126 +2,197 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AuditLog;
-use App\Models\ExchangeRate;
+use App\Exceptions\StaleSellQuoteException;
 use App\Models\ExchangeRequest;
 use App\Models\User;
+use App\Services\ExchangeRateResolver;
+use App\Services\SellRequestService;
 use App\Support\Decimal;
-use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
 class CustomerExchangeRequestController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function create(Request $request, SellRequestService $sellRequests): View
+    {
+        $user = $this->customer($request);
+
+        return view('pages.exchange-sell', [
+            'user' => $user,
+            'availableBalance' => $sellRequests->availableBalance($user),
+            'submissionKey' => (string) Str::uuid(),
+        ]);
+    }
+
+    public function estimate(Request $request, ExchangeRateResolver $rates): JsonResponse
     {
         $validated = $request->validate([
-            'submission_key' => ['required', 'uuid'],
-            'amount' => ['required', 'string', 'regex:/^(?:0|[1-9]\d{0,11})(?:\.\d{1,2})?$/'],
+            'amount' => ['required', 'string', 'regex:/^(?:0|[1-9]\d{0,11})(?:\.\d{1,8})?$/'],
         ]);
-        $user = $request->user('web');
-        abort_unless($user?->role === 'user', 403);
-
-        if (Decimal::compare($validated['amount'], '0', 2) <= 0) {
-            throw ValidationException::withMessages(['amount' => 'Enter a USDT amount greater than zero.']);
+        if (Decimal::compare($validated['amount'], '0', 8) <= 0) {
+            throw ValidationException::withMessages([
+                'amount' => 'Enter a USDT amount greater than zero.',
+            ]);
         }
 
-        $existing = ExchangeRequest::query()
-            ->where('user_id', $user->id)
-            ->where('submission_key', $validated['submission_key'])
-            ->first();
-        if ($existing) {
-            return $this->submitted($existing);
+        $plan = $rates->forAmount($validated['amount']);
+
+        return response()->json([
+            'plan' => $plan->name,
+            'rate' => $plan->formattedRate(),
+            'estimated_inr' => $rates->inrAmount($validated['amount'], (string) $plan->rate),
+        ]);
+    }
+
+    public function quote(Request $request, SellRequestService $sellRequests): View|RedirectResponse
+    {
+        $user = $this->customer($request);
+        $validator = Validator::make($request->all(), [
+            'submission_key' => ['required', 'uuid'],
+            'amount' => ['required', 'string', 'regex:/^(?:0|[1-9]\d{0,11})(?:\.\d{1,8})?$/'],
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->route('exchange.sell')
+                ->withErrors($validator)
+                ->withInput($request->only(['amount']));
+        }
+
+        $validated = $validator->validated();
+        if (Decimal::compare($validated['amount'], '0', 8) <= 0) {
+            return redirect()->route('exchange.sell')
+                ->withErrors(['amount' => 'Enter a USDT amount greater than zero.'])
+                ->withInput($validated);
         }
 
         try {
-            $exchange = DB::transaction(function () use ($request, $user, $validated): ExchangeRequest {
-                $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
-                $existing = ExchangeRequest::query()
-                    ->where('user_id', $lockedUser->id)
-                    ->where('submission_key', $validated['submission_key'])
-                    ->first();
-                if ($existing) {
-                    return $existing;
-                }
-
-                if (Decimal::compare((string) $lockedUser->balance, $validated['amount'], 2) < 0) {
-                    throw ValidationException::withMessages(['amount' => 'The requested amount exceeds your available USD balance.']);
-                }
-
-                $plan = ExchangeRate::query()
-                    ->where('is_active', true)
-                    ->where('minimum_amount', '<=', $validated['amount'])
-                    ->where(fn ($query) => $query->whereNull('maximum_amount')->orWhere('maximum_amount', '>=', $validated['amount']))
-                    ->orderByDesc('minimum_amount')
-                    ->first();
-                if (! $plan) {
-                    throw ValidationException::withMessages(['amount' => 'No active rate plan matches this amount. Please contact support.']);
-                }
-
-                $exchange = ExchangeRequest::create([
-                    'user_id' => $lockedUser->id,
-                    'request_reference' => $this->requestReference(),
-                    'submission_key' => $validated['submission_key'],
-                    'rate_plan_name' => $plan->name,
-                    'usdt_amount' => $validated['amount'],
-                    'exchange_rate' => (string) $plan->rate,
-                    'inr_amount' => Decimal::multiplyToCents($validated['amount'], (string) $plan->rate),
-                    'status' => 'pending',
-                ]);
-
-                AuditLog::create([
-                    'actor_user_id' => $lockedUser->id,
-                    'subject_user_id' => $lockedUser->id,
-                    'event' => 'exchange.submitted',
-                    'auditable_type' => ExchangeRequest::class,
-                    'auditable_id' => $exchange->id,
-                    'metadata' => [
-                        'request_reference' => $exchange->request_reference,
-                        'usdt_amount' => $exchange->usdt_amount,
-                        'exchange_rate' => $exchange->exchange_rate,
-                        'inr_amount' => $exchange->inr_amount,
-                    ],
-                    'ip_address' => $request->ip(),
-                ]);
-
-                return $exchange;
-            });
-        } catch (QueryException $exception) {
-            $exchange = ExchangeRequest::query()
-                ->where('user_id', $user->id)
-                ->where('submission_key', $validated['submission_key'])
-                ->first();
-            if (! $exchange) {
-                throw $exception;
-            }
+            $quote = $sellRequests->quote($user, $validated['amount']);
+        } catch (ValidationException $exception) {
+            return redirect()->route('exchange.sell')
+                ->withErrors($exception->errors())
+                ->withInput($validated);
         }
 
-        return $this->submitted($exchange);
+        return view('pages.exchange-sell-confirm', [
+            'user' => $user,
+            'quote' => $quote,
+            'submissionKey' => $validated['submission_key'],
+            'hasWalletPin' => $user->hasWalletTransactionPin(),
+            'maskedEmail' => $this->maskedEmail($user->email),
+        ]);
     }
 
-    private function requestReference(): string
+    public function store(Request $request, SellRequestService $sellRequests): RedirectResponse|Response
     {
-        do {
-            $reference = 'EXC-'.now()->format('Ymd').'-'.Str::upper(Str::random(10));
-        } while (ExchangeRequest::query()->where('request_reference', $reference)->exists());
+        $user = $this->customer($request);
+        $transactionPin = (string) $request->input('wallet_transaction_pin', '');
+        $request->request->remove('wallet_transaction_pin');
+        $validator = Validator::make($request->all(), [
+            'submission_key' => ['required', 'uuid'],
+            'quote_token' => ['required', 'string', 'max:5000'],
+            'amount' => ['required', 'string', 'regex:/^(?:0|[1-9]\d{0,11})(?:\.\d{1,8})?$/'],
+        ]);
+        $pinValidator = Validator::make(['wallet_transaction_pin' => $transactionPin], [
+            'wallet_transaction_pin' => ['required', 'digits:4'],
+        ]);
 
-        return $reference;
+        if ($validator->fails()) {
+            return redirect()->route('exchange.sell')
+                ->withErrors($validator)
+                ->withInput($request->only(['amount']));
+        }
+
+        $validated = $validator->validated();
+        if ($pinValidator->fails()) {
+            try {
+                $quote = $sellRequests->quote($user, $validated['amount']);
+            } catch (ValidationException $quoteException) {
+                return redirect()->route('exchange.sell')
+                    ->withErrors($quoteException->errors())
+                    ->withInput(['amount' => $validated['amount']]);
+            }
+
+            return response(
+                view('pages.exchange-sell-confirm', [
+                    'user' => $user,
+                    'quote' => $quote,
+                    'submissionKey' => $validated['submission_key'],
+                    'hasWalletPin' => $user->hasWalletTransactionPin(),
+                    'maskedEmail' => $this->maskedEmail($user->email),
+                ])->withErrors($pinValidator->errors()),
+                422,
+            );
+        }
+
+        try {
+            $exchange = $sellRequests->submit(
+                $user,
+                $validated['amount'],
+                $validated['submission_key'],
+                $validated['quote_token'],
+                $transactionPin,
+                $request->ip(),
+            );
+        } catch (StaleSellQuoteException) {
+            return redirect()->route('exchange.sell')
+                ->withInput([
+                    'amount' => $validated['amount'],
+                ])
+                ->with('rate_notice', 'The rate changed before confirmation. Review the updated request before submitting.');
+        } catch (ValidationException $exception) {
+            try {
+                $quote = $sellRequests->quote($user, $validated['amount']);
+            } catch (ValidationException $quoteException) {
+                return redirect()->route('exchange.sell')
+                    ->withErrors($quoteException->errors())
+                    ->withInput(['amount' => $validated['amount']]);
+            }
+
+            return response(
+                view('pages.exchange-sell-confirm', [
+                    'user' => $user,
+                    'quote' => $quote,
+                    'submissionKey' => $validated['submission_key'],
+                    'hasWalletPin' => $user->hasWalletTransactionPin(),
+                    'maskedEmail' => $this->maskedEmail($user->email),
+                ])->withErrors($exception->errors()),
+                422,
+            );
+        }
+
+        return redirect()->route('exchange.requests.show', $exchange)
+            ->with('sell_request_submitted', true);
     }
 
-    private function submitted(ExchangeRequest $exchange): RedirectResponse
+    public function show(Request $request, ExchangeRequest $exchangeRequest): View
     {
-        $message = match ($exchange->status) {
-            'completed' => 'Sell request '.$exchange->request_reference.' completed and its saved INR amount was credited to your wallet.',
-            'rejected' => 'Sell request '.$exchange->request_reference.' was rejected. Your USD balance was not changed.',
-            'processing' => 'Sell request '.$exchange->request_reference.' is being reviewed. Your USD balance remains unchanged until completion.',
-            default => 'Sell request '.$exchange->request_reference.' was submitted. Your USD balance will only change if an admin completes the exchange.',
-        };
+        $user = $this->customer($request);
+        abort_unless($exchangeRequest->user_id === $user->id, 404);
 
-        return redirect()->route('profile.exchanges')
-            ->with('status', $message);
+        return view('pages.profile-exchange-show', [
+            'user' => $user,
+            'exchange' => $exchangeRequest,
+        ]);
+    }
+
+    private function customer(Request $request): User
+    {
+        $user = $request->user('web');
+        abort_unless($user?->role === 'user', 403);
+
+        return $user;
+    }
+
+    private function maskedEmail(string $email): string
+    {
+        [$name, $domain] = explode('@', $email, 2);
+
+        return mb_substr($name, 0, 1).str_repeat('*', min(5, max(3, mb_strlen($name) - 1))).'@'.$domain;
     }
 }

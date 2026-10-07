@@ -81,6 +81,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
+        'wallet_transaction_password_hash',
         'remember_token',
         'totp_secret',
         'balance',
@@ -111,7 +112,7 @@ class User extends Authenticatable
             'totp_secret' => 'encrypted',
             'totp_enabled' => 'boolean',
             'totp_last_counter' => 'integer',
-            'balance' => 'decimal:2',
+            'balance' => 'decimal:8',
             'inr_balance' => 'decimal:2',
             'account_holder_name' => 'encrypted',
             'bank_name' => 'encrypted',
@@ -192,6 +193,11 @@ class User extends Authenticatable
         $accountNumber = (string) $this->account_number;
 
         return str_repeat('•', max(4, mb_strlen($accountNumber) - 4)).mb_substr($accountNumber, -4);
+    }
+
+    public function hasWalletTransactionPin(): bool
+    {
+        return filled($this->wallet_transaction_password_hash);
     }
 
     public function referrals(): HasMany

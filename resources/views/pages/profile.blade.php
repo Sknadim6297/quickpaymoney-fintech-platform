@@ -43,7 +43,7 @@
                 <a class="profile-action-button profile-bank-action" href="{{ route('profile.bank') }}">
                     <i class="bi bi-bank" aria-hidden="true"></i><span>Enter Bank Details</span><i class="bi bi-arrow-right" aria-hidden="true"></i>
                 </a>
-                <a class="profile-action-button profile-sell-action" href="{{ route('exchange') }}">
+                <a class="profile-action-button profile-sell-action" href="{{ route('exchange.sell') }}">
                     <i class="bi bi-arrow-left-right" aria-hidden="true"></i><span>Sell Now</span><i class="bi bi-arrow-right" aria-hidden="true"></i>
                 </a>
             </div>
@@ -66,7 +66,10 @@
                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
                 </a>
                 <a class="profile-menu-item" href="{{ route('profile.exchanges') }}">
-                    <span class="profile-menu-icon"><i class="bi bi-arrow-left-right" aria-hidden="true"></i></span><span>Exchange History</span><i class="bi bi-chevron-right" aria-hidden="true"></i>
+                    <span class="profile-menu-icon"><i class="bi bi-arrow-left-right" aria-hidden="true"></i></span><span class="profile-menu-label">Exchange History<small>Sell requests and their current status</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </a>
+                <a class="profile-menu-item" href="#wallet-transaction-pin" data-wallet-pin-open data-wallet-pin-purpose="{{ $user->hasWalletTransactionPin() ? 'wallet_password_change' : 'wallet_password_set' }}">
+                    <span class="profile-menu-icon"><i class="bi bi-shield-lock" aria-hidden="true"></i></span><span>Wallet Transaction PIN</span><span class="profile-bank-status" data-pin-status>{{ $user->hasWalletTransactionPin() ? 'Active' : 'Not Set' }}</span><i class="bi bi-chevron-right" aria-hidden="true"></i>
                 </a>
                 <a class="profile-menu-item" href="{{ route('profile.referrals') }}">
                     <span class="profile-menu-icon"><i class="bi bi-people" aria-hidden="true"></i></span><span>Referrals</span><i class="bi bi-chevron-right" aria-hidden="true"></i>
@@ -78,8 +81,10 @@
                     <span class="profile-menu-icon"><i class="bi bi-shield-lock" aria-hidden="true"></i></span><span>Reset Password</span><i class="bi bi-chevron-right" aria-hidden="true"></i>
                 </a>
             </nav>
+            <p class="portal-status" role="status" data-pin-success-message hidden></p>
         </main>
 
+        @include('partials.wallet-pin-modal', ['user' => $user, 'maskedEmail' => mb_substr($user->email, 0, 1).'***@'.substr(strstr($user->email, '@'), 1)])
         @include('partials.bottom-nav', ['active' => 'profile', 'variant' => 'standard', 'appShell' => true])
     </div>
 @endsection

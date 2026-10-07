@@ -12,11 +12,16 @@
                 <div><dt>Customer</dt><dd><a class="admin-inline-link" href="{{ route('admin.users.show', $withdrawal->user) }}">{{ $withdrawal->user->name }}</a><small>{{ $withdrawal->user->email }} · {{ $withdrawal->user->customer_id }}</small></dd></div>
                 <div><dt>Amount</dt><dd>{{ \App\Support\Money::formatInr((string) $withdrawal->amount) }}</dd></div>
                 <div><dt>Requested</dt><dd>{{ $withdrawal->requested_at->format('M j, Y · H:i:s') }}</dd></div>
-                <div><dt>Account holder</dt><dd>{{ $withdrawal->bank_account_holder }}</dd></div>
-                <div><dt>Bank</dt><dd>{{ $withdrawal->bank_name }}</dd></div>
-                <div><dt>Account number</dt><dd>{{ $withdrawal->bank_account_number }}</dd></div>
-                <div><dt>IFSC</dt><dd>{{ $withdrawal->bank_ifsc_code }}</dd></div>
-                <div><dt>Branch / type</dt><dd>{{ $withdrawal->bank_branch_name ?: '—' }} / {{ $withdrawal->bank_account_type ?: '—' }}</dd></div>
+                <div><dt>Payment method</dt><dd>{{ $withdrawal->payout_method === 'bank' ? 'Bank Account' : 'Cash' }}</dd></div>
+                @if ($withdrawal->payout_method === 'bank')
+                    <div><dt>Account holder</dt><dd>{{ $withdrawal->bank_account_holder }}</dd></div>
+                    <div><dt>Bank</dt><dd>{{ $withdrawal->bank_name }}</dd></div>
+                    <div><dt>Account number</dt><dd>{{ $withdrawal->bank_account_number }}</dd></div>
+                    <div><dt>IFSC</dt><dd>{{ $withdrawal->bank_ifsc_code }}</dd></div>
+                    <div><dt>Branch / type</dt><dd>{{ $withdrawal->bank_branch_name ?: '—' }} / {{ $withdrawal->bank_account_type ?: '—' }}</dd></div>
+                @else
+                    <div><dt>Cash handling</dt><dd>Administrator-managed; request creation does not confirm a payout.</dd></div>
+                @endif
                 <div><dt>Available INR after reservation</dt><dd>{{ \App\Support\Money::formatInr((string) $withdrawal->user->inr_balance) }}</dd></div>
             </dl>
         </section>
@@ -36,6 +41,9 @@
                     <label for="admin_notes">Admin notes</label>
                     <textarea class="portal-input" id="admin_notes" name="admin_notes" rows="4" maxlength="5000">{{ old('admin_notes', $withdrawal->admin_notes) }}</textarea>
                     @error('admin_notes')<span class="admin-field-error">{{ $message }}</span>@enderror
+                    <label for="rejection_reason">Customer rejection reason <span>(required when rejecting)</span></label>
+                    <textarea class="portal-input" id="rejection_reason" name="rejection_reason" rows="3" maxlength="500">{{ old('rejection_reason', $withdrawal->rejection_reason) }}</textarea>
+                    @error('rejection_reason')<span class="admin-field-error">{{ $message }}</span>@enderror
                     <button class="admin-button" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Save status</button>
                 </form>
             @else

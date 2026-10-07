@@ -112,7 +112,7 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('home')->with('status', 'Signed out successfully.');
+        return redirect()->route('landing')->with('status', 'Signed out successfully.');
     }
 
     public function showForgotPassword(): View
@@ -196,6 +196,7 @@ class AuthController extends Controller
             'search' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', Rule::in(\App\Models\ExchangeRequest::STATUSES)],
         ]);
+        $hasFilters = filled($filters['search'] ?? null) || filled($filters['status'] ?? null);
         $exchanges = $user->exchangeRequests()
             ->when($filters['search'] ?? null, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
@@ -204,20 +205,12 @@ class AuthController extends Controller
                 });
             })
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
-            ->latest()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(10)
             ->withQueryString();
 
-        return view('pages.profile-exchanges', compact('user', 'exchanges'));
-    }
-
-    public function showExchange(Request $request, int $exchangeRequest): View
-    {
-        $user = $request->user('web');
-        abort_unless($user?->role === 'user', 403);
-        $exchange = $user->exchangeRequests()->findOrFail($exchangeRequest);
-
-        return view('pages.profile-exchange-show', compact('user', 'exchange'));
+        return view('pages.profile-exchanges', compact('user', 'exchanges', 'hasFilters'));
     }
 
     public function referrals(Request $request): View

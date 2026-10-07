@@ -46,6 +46,9 @@
 !/storage/app/private/.gitignore
 /storage/app/public/*
 !/storage/app/public/.gitignore
+/storage/framework/cache/*
+!/storage/framework/cache/.gitignore
+!/storage/framework/cache/data/
 /storage/framework/cache/data/*
 !/storage/framework/cache/data/.gitignore
 /storage/framework/sessions/*
@@ -82,6 +85,16 @@ Desktop.ini
 *.swp
 *.swo
 *.orig
+*.log
+*.tmp
+*.temp
+*.cache
+*.old
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
 
 # Local hosting / VM configuration
 /Homestead.json

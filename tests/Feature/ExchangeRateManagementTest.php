@@ -112,7 +112,7 @@ class ExchangeRateManagementTest extends TestCase
         $this->assertSame(129.75, (float) $plan->rate);
         $this->assertSame(60000.0, (float) $plan->minimum_amount);
         $this->assertDatabaseHas('audit_logs', ['event' => 'admin.exchange_rate_plan_updated']);
-        $this->get(route('home'))->assertOk()->assertSee('>100</span>', false);
+        $this->actingAs(User::factory()->create(), 'web')->get(route('home'))->assertOk()->assertSee('>100</span>', false);
         $this->get(route('exchange'))->assertOk()->assertSee('129.75')->assertSee('Updated institutional tier');
 
         $historicalRequest = ExchangeRequest::create([
@@ -187,7 +187,7 @@ class ExchangeRateManagementTest extends TestCase
         $this->assertSame('Base Reference Rate', $base->name);
         $this->assertFalse($base->is_active);
         $this->assertSame(0.0, (float) $base->minimum_amount);
-        $this->get(route('home'))->assertDontSee('102.25')->assertDontSee('MARKET REFERENCE');
+        $this->actingAs(User::factory()->create(), 'web')->get(route('home'))->assertDontSee('102.25')->assertDontSee('MARKET REFERENCE');
         $this->assertDatabaseHas('audit_logs', [
             'actor_user_id' => $admin->id,
             'event' => 'admin.exchange_rate_plan_updated',
@@ -250,7 +250,7 @@ class ExchangeRateManagementTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->get(route('home'))->assertOk()->assertSee('>100.5</span>', false);
+        $this->actingAs(User::factory()->create(), 'web')->get(route('home'))->assertOk()->assertSee('>100.5</span>', false);
         $this->get(route('exchange'))->assertOk()->assertSee('1 USDT = 100.5 INR')->assertSee('₹100.5');
 
         $this->assertSame(100.5, (float) $base->fresh()->rate);
@@ -323,47 +323,69 @@ class ExchangeRateManagementTest extends TestCase
             ->assertSee('USDT to INR estimate')
             ->assertSee('Enter USDT Amount')
             ->assertSee('subject to verification and applicable fees')
-            ->assertSee('0 – 9,999.99 USDT')
-            ->assertSee('10,000 – 19,999.99 USDT')
+            ->assertSee('0 – 9,999.99999999 USDT')
+            ->assertSee('10,000 – 19,999.99999999 USDT')
             ->assertSee('20,000+ USDT')
             ->assertSee('aria-disabled="true"', false);
 
-        $this->getJson(route('withdrawal.quote', ['amount' => '9999.99']))
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '9999.99']))
             ->assertOk()
             ->assertJsonPath('plan', 'Base Rate')
             ->assertJsonPath('rate', '100')
             ->assertJsonPath('estimated_inr', '999999.00');
 
-        $this->getJson(route('withdrawal.quote', ['amount' => '10000']))
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '9999.99999999']))
+            ->assertOk()
+            ->assertJsonPath('plan', 'Base Rate')
+            ->assertJsonPath('estimated_inr', '1000000.00');
+
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '10000']))
             ->assertOk()
             ->assertJsonPath('plan', 'Prime Rate')
             ->assertJsonPath('estimated_inr', '1150000.00');
 
-        $this->getJson(route('withdrawal.quote', ['amount' => '19999.99']))
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '19999.99']))
             ->assertOk()
             ->assertJsonPath('plan', 'Prime Rate')
             ->assertJsonPath('estimated_inr', '2299998.85');
 
-        $this->getJson(route('withdrawal.quote', ['amount' => '20000']))
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '19999.99999999']))
+            ->assertOk()
+            ->assertJsonPath('plan', 'Prime Rate')
+            ->assertJsonPath('estimated_inr', '2300000.00');
+
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '20000']))
             ->assertOk()
             ->assertJsonPath('plan', 'VIP Rate')
             ->assertJsonPath('estimated_inr', '2400000.00');
 
-        $this->getJson(route('withdrawal.quote', ['amount' => '15000']))
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '15000']))
             ->assertOk()
             ->assertJsonPath('estimated_inr', '1725000.00');
 
-        $this->getJson(route('withdrawal.quote', ['amount' => '0.00000001']))
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '500']))
+            ->assertOk()
+            ->assertJsonPath('estimated_inr', '50000.00');
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '25000']))
+            ->assertOk()
+            ->assertJsonPath('plan', 'VIP Rate')
+            ->assertJsonPath('estimated_inr', '3000000.00');
+
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '0']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('amount');
+
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '0.00000001']))
             ->assertOk()
             ->assertJsonPath('estimated_inr', '0.00');
 
         ExchangeRate::where('plan_key', 'base')->update(['rate' => '100.12345678']);
-        $this->getJson(route('withdrawal.quote', ['amount' => '1.23456789']))
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '1.23456789']))
             ->assertOk()
             ->assertJsonPath('estimated_inr', '123.61');
 
         ExchangeRate::where('plan_key', 'prime')->update(['is_active' => false]);
-        $this->getJson(route('withdrawal.quote', ['amount' => '15000']))
+        $this->getJson(route('exchange.sell.estimate', ['amount' => '15000']))
             ->assertUnprocessable()
             ->assertJsonValidationErrors('amount');
     }

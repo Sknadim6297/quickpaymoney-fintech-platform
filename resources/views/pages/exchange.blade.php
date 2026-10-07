@@ -121,7 +121,6 @@
                 @else
                     <strong>Sign in to view</strong>
                 @endif
-
             </div>
 
         </section>
@@ -167,7 +166,7 @@
 
                 <div class="col-6 col-md-3">
 
-                    <button class="action-card" type="button" aria-disabled="true">
+                    <a class="action-card" href="{{ auth('web')->user()?->role === 'user' ? route('exchange.sell') : route('login') }}">
 
                         <div class="action-icon">
 
@@ -184,7 +183,7 @@
                         </div>
 
                         <i class="bi bi-chevron-right action-arrow"></i>
-                    </button>
+                    </a>
 
                 </div>
 
@@ -193,7 +192,7 @@
 
                 <div class="col-6 col-md-3">
 
-                    <button class="action-card" type="button" aria-disabled="true">
+                    <a class="action-card" href="{{ auth('web')->user()?->role === 'user' ? route('wallet.withdrawals.create') : route('login') }}">
 
                         <div class="action-icon">
 
@@ -210,7 +209,7 @@
                         </div>
 
                         <i class="bi bi-chevron-right action-arrow"></i>
-                    </button>
+                    </a>
 
                 </div>
 
@@ -312,7 +311,7 @@
         <article class="rate-card"><div class="rate-info"><div class="rate-details"><div class="rate-name">Exchange rates are temporarily unavailable.</div></div></div></article>
     @endforelse
 
-    <section class="withdrawal-calculator" aria-labelledby="withdrawal-calculator-title" data-quote-url="{{ route('withdrawal.quote') }}">
+    <section class="withdrawal-calculator" aria-labelledby="withdrawal-calculator-title" data-quote-url="{{ route('exchange.sell.estimate') }}">
         <div class="withdrawal-calculator-heading">
             <span class="withdrawal-calculator-icon"><i class="bi bi-calculator" aria-hidden="true"></i></span>
             <div>
@@ -329,7 +328,7 @@
             <div><dt>USDT Amount</dt><dd id="withdrawal-amount-value">—</dd></div>
             <div class="withdrawal-estimate"><dt>Estimated INR Amount</dt><dd id="withdrawal-estimated-inr">—</dd></div>
         </dl>
-        <p class="withdrawal-calculator-disclaimer">Informational estimate only, subject to verification and applicable fees. Use the sell request form below to request a rate-locked exchange into your INR balance.</p>
+        <p class="withdrawal-calculator-disclaimer">Informational estimate only, subject to verification and applicable fees. Confirm the active rate before submitting your sell request.</p>
     </section>
 
     <section class="trade-usdt-banner">

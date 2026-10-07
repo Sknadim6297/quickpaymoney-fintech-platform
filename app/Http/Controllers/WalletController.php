@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Deposit;
 use App\Models\WithdrawalRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -39,18 +38,13 @@ class WalletController extends Controller
             ->latest('requested_at')
             ->paginate(10, ['*'], 'withdrawal_page')
             ->withQueryString();
-        $hasBankDetails = $user->hasCompleteBankDetails();
-        $bankVerificationStatus = $user->bankVerificationStatus();
-        $canWithdraw = $hasBankDetails && $bankVerificationStatus === 'verified';
+        $canWithdraw = \App\Support\Decimal::compare((string) $user->inr_balance, '0', 2) > 0;
 
         return view('pages.wallet', [
             'user' => $user,
             'deposits' => $deposits,
             'withdrawals' => $withdrawals,
-            'hasBankDetails' => $hasBankDetails,
-            'bankVerificationStatus' => $bankVerificationStatus,
             'canWithdraw' => $canWithdraw,
-            'withdrawalSubmissionKey' => (string) Str::uuid(),
         ]);
     }
 }

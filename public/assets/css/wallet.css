@@ -123,6 +123,40 @@
     grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.wallet-payout-options {
+    display: grid;
+    gap: 8px;
+    margin: 8px 0;
+    padding: 0;
+    border: 0;
+}
+
+.wallet-payout-options legend {
+    margin-bottom: 7px;
+    color: #e8eaf0;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.wallet-payout-options label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 12px;
+    border: 1px solid #30343c;
+    border-radius: 10px;
+    color: #f4f5f6;
+    font-size: 12px;
+}
+
+.wallet-payout-options label.is-disabled {
+    opacity: .55;
+}
+
+.wallet-payout-options small {
+    color: #aeb3bd;
+}
+
 .wallet-history-item {
     min-width: 0;
     margin-top: 9px;
@@ -251,6 +285,33 @@
     font-size: 11px;
 }
 
+.withdrawal-form-card {
+    margin-top: 14px;
+}
+
+.withdrawal-history-link {
+    display: inline-block;
+    margin-top: 13px;
+}
+
+.wallet-history-rejection {
+    grid-column: 1 / -1;
+}
+
+.wallet-history-rejection strong {
+    color: #ff9aa2;
+}
+
+.withdrawal-invoice-actions {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.withdrawal-invoice-actions .wallet-back-link {
+    margin-top: 0;
+}
+
 @media (max-width: 380px) {
     .wallet-history-card {
         padding: 12px;
@@ -270,5 +331,30 @@
 
     .wallet-withdrawal-filter > .wallet-filter-button {
         grid-column: auto;
+    }
+}
+
+@media print {
+    body:has(.withdrawal-invoice) {
+        background: #fff !important;
+        color: #111 !important;
+    }
+
+    .withdrawal-invoice .profile-content-heading,
+    .withdrawal-invoice .profile-detail-list,
+    .withdrawal-invoice .profile-detail-list dt,
+    .withdrawal-invoice .profile-detail-list dd {
+        color: #111 !important;
+    }
+
+    .withdrawal-invoice-actions,
+    .top-header,
+    .bottom-nav {
+        display: none !important;
+    }
+
+    .withdrawal-invoice .wallet-history-card {
+        border: 0;
+        box-shadow: none;
     }
 }

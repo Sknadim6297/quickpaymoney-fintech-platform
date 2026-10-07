@@ -107,6 +107,10 @@ body {
     gap: 10px;
 }
 
+.header-logout-form {
+    margin: 0;
+}
+
 .header-btn {
     height: 44px;
     padding: 0 20px;
@@ -1036,7 +1040,7 @@ body {
 .rate-name {
     font-size: 21px;
     font-weight: 900;
-    color: #eee;
+    color: #ffd000;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1085,7 +1089,7 @@ body {
 
 
 .rate-number {
-    color: #080808;
+    color: #fff;
     font-size: 30px;
     font-weight: 900;
     display: flex;

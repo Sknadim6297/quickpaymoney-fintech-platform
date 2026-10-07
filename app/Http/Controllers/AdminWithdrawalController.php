@@ -56,6 +56,7 @@ class AdminWithdrawalController extends Controller
             'status' => ['required', Rule::in(WithdrawalRequest::STATUSES)],
             'transaction_reference' => ['nullable', 'string', 'max:150', Rule::unique('withdrawal_requests', 'transaction_reference')->ignore($withdrawalRequest->id)],
             'admin_notes' => ['nullable', 'string', 'max:5000'],
+            'rejection_reason' => ['required_if:status,rejected', 'nullable', 'string', 'min:3', 'max:500'],
         ]);
         $admin = $request->user('admin');
 
@@ -78,23 +79,28 @@ class AdminWithdrawalController extends Controller
                 'transaction_reference' => $withdrawal->transaction_reference,
             ];
 
+            if ($validated['status'] === 'completed' && $withdrawal->inrLedgerEntries()->where('entry_type', 'hold')->exists()) {
+                InrLedgerEntry::create([
+                    'user_id' => $withdrawal->user_id,
+                    'actor_user_id' => $admin->id,
+                    'source_type' => 'withdrawal_request',
+                    'source_id' => $withdrawal->id,
+                    'entry_type' => 'capture',
+                    'amount' => $withdrawal->amount,
+                ]);
+            }
+
             if ($validated['status'] === 'rejected') {
                 $user = User::query()->whereKey($withdrawal->user_id)->lockForUpdate()->firstOrFail();
-                abort_if(
-                    InrLedgerEntry::query()
-                        ->where('source_type', 'withdrawal_request')
-                        ->where('source_id', $withdrawal->id)
-                        ->where('entry_type', 'credit')
-                        ->exists(),
-                    409,
-                    'This withdrawal has already been refunded.'
-                );
+                $held = $withdrawal->inrLedgerEntries()->where('entry_type', 'hold')->exists();
+                $releaseType = $held ? 'release' : 'credit';
+                abort_if($withdrawal->inrLedgerEntries()->where('entry_type', $releaseType)->exists(), 409, 'This withdrawal has already been released.');
                 InrLedgerEntry::create([
                     'user_id' => $user->id,
                     'actor_user_id' => $admin->id,
                     'source_type' => 'withdrawal_request',
                     'source_id' => $withdrawal->id,
-                    'entry_type' => 'credit',
+                    'entry_type' => $releaseType,
                     'amount' => $withdrawal->amount,
                 ]);
                 DB::table('users')->where('id', $user->id)->increment('inr_balance', $withdrawal->amount);
@@ -106,6 +112,8 @@ class AdminWithdrawalController extends Controller
                 'admin_notes' => $validated['admin_notes'] ?? null,
                 'reviewed_by_user_id' => $admin->id,
                 'reviewed_at' => now(),
+                'completed_at' => $validated['status'] === 'completed' ? now() : $withdrawal->completed_at,
+                'rejection_reason' => $validated['status'] === 'rejected' ? $validated['rejection_reason'] : null,
             ])->save();
 
             AuditLog::create([
@@ -119,6 +127,7 @@ class AdminWithdrawalController extends Controller
                     'after' => [
                         'status' => $withdrawal->status,
                         'transaction_reference' => $withdrawal->transaction_reference,
+                        'rejection_reason' => $withdrawal->rejection_reason,
                     ],
                     'amount' => $withdrawal->amount,
                 ],

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use LogicException;
 
 class WithdrawalRequest extends Model
@@ -15,6 +16,7 @@ class WithdrawalRequest extends Model
         'user_id',
         'submission_key',
         'amount',
+        'payout_method',
         'bank_account_holder',
         'bank_name',
         'bank_account_number',
@@ -27,6 +29,8 @@ class WithdrawalRequest extends Model
         'reviewed_by_user_id',
         'requested_at',
         'reviewed_at',
+        'completed_at',
+        'rejection_reason',
     ];
 
     protected function casts(): array
@@ -41,6 +45,7 @@ class WithdrawalRequest extends Model
             'bank_account_type' => 'encrypted',
             'requested_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'completed_at' => 'datetime',
         ];
     }
 
@@ -52,6 +57,7 @@ class WithdrawalRequest extends Model
                 'user_id',
                 'submission_key',
                 'amount',
+                'payout_method',
                 'bank_account_holder',
                 'bank_name',
                 'bank_account_number',
@@ -75,5 +81,11 @@ class WithdrawalRequest extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by_user_id');
+    }
+
+    public function inrLedgerEntries(): HasMany
+    {
+        return $this->hasMany(InrLedgerEntry::class, 'source_id')
+            ->where('source_type', 'withdrawal_request');
     }
 }
