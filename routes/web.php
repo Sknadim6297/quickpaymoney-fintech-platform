@@ -6,18 +6,24 @@ use App\Http\Controllers\AdminDepositController;
 use App\Http\Controllers\AdminDepositSettingsController;
 use App\Http\Controllers\AdminExchangeController;
 use App\Http\Controllers\AdminRateController;
+use App\Http\Controllers\AdminSupportTicketController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdminWithdrawalController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CustomerExchangeRequestController;
 use App\Http\Controllers\DepositController;
 use App\Http\Controllers\PublicPagesController;
+use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\WithdrawalQuoteController;
 use App\Http\Controllers\WalletController;
+use App\Http\Controllers\WithdrawalController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PublicPagesController::class, 'home'])->name('home');
 Route::get('/exchange', [PublicPagesController::class, 'exchange'])->name('exchange');
 Route::get('/withdrawal/quote', WithdrawalQuoteController::class)->middleware('throttle:60,1')->name('withdrawal.quote');
-Route::view('/contact', 'pages.contact')->name('contact');
+Route::get('/contact', [SupportTicketController::class, 'index'])->name('contact');
+Route::post('/support/tickets', [SupportTicketController::class, 'store'])->middleware('throttle:5,1')->name('support.tickets.store');
 Route::get('/dashboard', fn () => redirect()->route('home'))->name('dashboard');
 
 Route::middleware('guest:web')->group(function (): void {
@@ -35,10 +41,21 @@ Route::middleware(['auth:web', 'auth.session'])->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::middleware('active.account')->group(function (): void {
+        Route::get('/support/tickets/{ticket:ticket_number}', [SupportTicketController::class, 'show'])->name('support.tickets.show');
+        Route::post('/support/tickets/{ticket:ticket_number}/messages', [SupportTicketController::class, 'reply'])->middleware('throttle:10,1')->name('support.tickets.reply');
         Route::get('/profile', [AuthController::class, 'profile'])->name('profile');
+        Route::get('/profile/bank', [AuthController::class, 'bankDetails'])->name('profile.bank');
+        Route::get('/profile/exchanges', [AuthController::class, 'exchangeHistory'])->name('profile.exchanges');
+        Route::get('/profile/exchanges/{exchangeRequest}', [AuthController::class, 'showExchange'])->name('profile.exchanges.show');
+        Route::get('/profile/referrals', [AuthController::class, 'referrals'])->name('profile.referrals');
+        Route::get('/profile/referrals/history', [AuthController::class, 'referralHistory'])->name('profile.referrals.history');
+        Route::get('/profile/password', [AuthController::class, 'showChangePassword'])->name('profile.password');
         Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
-        Route::put('/security/password', [AuthController::class, 'changePassword'])->name('password.change');
+        Route::put('/security/password', [AuthController::class, 'changePassword'])->middleware('throttle:6,1')->name('password.change');
         Route::get('/wallet', WalletController::class)->name('wallet');
+        Route::post('/exchange/requests', [CustomerExchangeRequestController::class, 'store'])->middleware('throttle:5,1')->name('exchange.requests.store');
+        Route::post('/wallet/withdrawals', [WithdrawalController::class, 'store'])->middleware('throttle:5,1')->name('wallet.withdrawals.store');
+        Route::get('/wallet/withdrawals/{withdrawalRequest}', [WithdrawalController::class, 'show'])->name('wallet.withdrawals.show');
         Route::get('/deposit', [DepositController::class, 'create'])->name('deposit.create');
         Route::post('/deposit', [DepositController::class, 'store'])->middleware('throttle:5,1')->name('deposit.store');
         Route::get('/deposit/payment-qr', [DepositController::class, 'paymentQr'])->name('deposit.payment-qr');
@@ -78,6 +95,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/exchanges', [AdminExchangeController::class, 'index'])->name('exchanges.index');
             Route::get('/exchanges/{exchangeRequest}', [AdminExchangeController::class, 'show'])->name('exchanges.show');
             Route::put('/exchanges/{exchangeRequest}', [AdminExchangeController::class, 'update'])->name('exchanges.update');
+            Route::get('/withdrawals', [AdminWithdrawalController::class, 'index'])->name('withdrawals.index');
+            Route::get('/withdrawals/{withdrawalRequest}', [AdminWithdrawalController::class, 'show'])->name('withdrawals.show');
+            Route::put('/withdrawals/{withdrawalRequest}', [AdminWithdrawalController::class, 'update'])->name('withdrawals.update');
+            Route::get('/support-tickets', [AdminSupportTicketController::class, 'index'])->name('support-tickets.index');
+            Route::get('/support-tickets/{ticket:ticket_number}', [AdminSupportTicketController::class, 'show'])->name('support-tickets.show');
+            Route::post('/support-tickets/{ticket:ticket_number}/messages', [AdminSupportTicketController::class, 'reply'])->middleware('throttle:20,1')->name('support-tickets.reply');
+            Route::put('/support-tickets/{ticket:ticket_number}', [AdminSupportTicketController::class, 'update'])->name('support-tickets.update');
 
             Route::get('/rates', [AdminRateController::class, 'show'])->name('rates.edit');
             Route::post('/rates', [AdminRateController::class, 'store'])->name('rates.store');

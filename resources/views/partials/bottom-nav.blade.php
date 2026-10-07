@@ -1,5 +1,5 @@
 @if ($variant === 'wallet')
-    <nav class="bottom-nav">
+    <nav class="bottom-nav {{ !empty($appShell) ? 'app-shell' : '' }}">
         <a href="{{ route('home') }}" class="nav-item {{ $active === 'home' ? 'active' : '' }}">
             <div class="nav-icon"><i class="bi bi-house-fill"></i></div>
             <span>Home</span>
@@ -18,7 +18,7 @@
         </a>
     </nav>
 @elseif ($variant === 'exchange')
-    <nav class="bottom-nav">
+    <nav class="bottom-nav {{ !empty($appShell) ? 'app-shell' : '' }}">
         <a href="{{ route('home') }}" class="nav-item {{ $active === 'home' ? 'active' : '' }}">
             <i class="bi bi-house-fill"></i>
             <span>Home</span>
@@ -33,7 +33,7 @@
         </a>
     </nav>
 @else
-    <nav class="bottom-nav">
+    <nav class="bottom-nav {{ !empty($appShell) ? 'app-shell' : '' }}">
         <a href="{{ route('home') }}" class="nav-item {{ $active === 'home' ? 'active' : '' }}">
             <div class="nav-icon"><i class="bi bi-house-fill"></i></div>
             <span>Home</span>

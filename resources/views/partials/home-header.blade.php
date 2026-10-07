@@ -10,32 +10,9 @@
             </a>
 
             @auth('web')
-                @php($user = auth('web')->user())
                 <a class="header-btn wallet-header-link" href="{{ route('wallet') }}" aria-label="My Wallet">
                     <i class="bi bi-wallet2" aria-hidden="true"></i>
                 </a>
-                <div class="user-menu">
-                    <button
-                        class="header-btn user-menu-toggle"
-                        type="button"
-                        aria-label="Account menu for {{ $user->name }}"
-                        aria-haspopup="true"
-                        aria-expanded="false"
-                        aria-controls="user-menu-panel"
-                        data-user-menu-toggle
-                    >
-                        <i class="bi bi-person-circle" aria-hidden="true"></i>
-                    </button>
-                    <div class="user-menu-panel" id="user-menu-panel" role="menu" hidden>
-                        <p class="user-menu-name">{{ $user->name }}</p>
-                        <a href="{{ route('profile') }}" role="menuitem">Profile</a>
-                        <a href="{{ route('wallet') }}" role="menuitem"><i class="bi bi-wallet2" aria-hidden="true"></i> My Wallet</a>
-                        <form method="POST" action="{{ route('logout') }}" data-confirm="You will be signed out of your account." data-confirm-title="Sign out?">
-                            @csrf
-                            <button type="submit" role="menuitem">Logout</button>
-                        </form>
-                    </div>
-                </div>
             @else
                 <a class="header-btn login-btn" href="{{ route('login') }}">
                     <i class="bi bi-person-fill" aria-hidden="true"></i>

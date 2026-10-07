@@ -3,8 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\BalanceLedgerEntry;
 use App\Models\ExchangeRequest;
+use App\Models\InrLedgerEntry;
+use App\Models\User;
 use App\Notifications\ExchangeStatusUpdated;
+use App\Support\Decimal;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +28,7 @@ class AdminExchangeController extends Controller
             ->when($validated['search'] ?? null, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->where('transaction_reference', 'like', '%'.$search.'%')
+                        ->orWhere('request_reference', 'like', '%'.$search.'%')
                         ->orWhereHas('user', fn ($users) => $users->where('email', 'like', '%'.$search.'%')->orWhere('name', 'like', '%'.$search.'%'));
                 });
             })
@@ -64,6 +69,45 @@ class AdminExchangeController extends Controller
             abort_if($validated['status'] === 'completed' && empty($validated['transaction_reference']), 422, 'A transaction reference is required before completion.');
 
             $before = ['status' => $exchange->status, 'transaction_reference' => $exchange->transaction_reference];
+
+            if ($validated['status'] === 'completed') {
+                $user = User::query()->whereKey($exchange->user_id)->lockForUpdate()->firstOrFail();
+                abort_if(
+                    Decimal::compare((string) $user->balance, (string) $exchange->usdt_amount, 2) < 0,
+                    422,
+                    'The customer no longer has enough USD to complete this exchange.'
+                );
+                abort_if(
+                    BalanceLedgerEntry::query()
+                        ->where('source_type', 'exchange_request')
+                        ->where('source_id', $exchange->id)
+                        ->where('entry_type', 'debit')
+                        ->exists(),
+                    409,
+                    'This exchange has already debited the customer USD balance.'
+                );
+
+                BalanceLedgerEntry::create([
+                    'user_id' => $user->id,
+                    'source_type' => 'exchange_request',
+                    'source_id' => $exchange->id,
+                    'actor_user_id' => $request->user('admin')->id,
+                    'entry_type' => 'debit',
+                    'amount' => $exchange->usdt_amount,
+                ]);
+                DB::table('users')->where('id', $user->id)->decrement('balance', $exchange->usdt_amount);
+
+                InrLedgerEntry::create([
+                    'user_id' => $user->id,
+                    'actor_user_id' => $request->user('admin')->id,
+                    'source_type' => 'exchange_request',
+                    'source_id' => $exchange->id,
+                    'entry_type' => 'credit',
+                    'amount' => $exchange->inr_amount,
+                ]);
+                DB::table('users')->where('id', $user->id)->increment('inr_balance', $exchange->inr_amount);
+            }
+
             $exchange->fill($validated)->save();
             AuditLog::create([
                 'actor_user_id' => $request->user('admin')->id,

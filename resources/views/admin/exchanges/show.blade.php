@@ -2,7 +2,7 @@
 @section('title', 'Quick PayMoney | Exchange Details')
 @section('admin-content')
     <div class="admin-page-heading">
-        <div><span class="admin-eyebrow">OPERATIONS / REQUEST DETAILS</span><h1>Exchange request <span class="admin-title-id">#{{ $exchange->id }}</span></h1><p>Workflow updates are audited and notified to the user. No funds are settled.</p></div>
+        <div><span class="admin-eyebrow">OPERATIONS / REQUEST DETAILS</span><h1>Exchange request <span class="admin-title-id">{{ $exchange->request_reference ?: '#'.$exchange->id }}</span></h1><p>Completing the request debits recorded USD and credits INR atomically. No bank transfer is initiated.</p></div>
         <a class="admin-button admin-button-secondary" href="{{ route('admin.exchanges.index') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to requests</a>
     </div>
     <div class="admin-detail-grid">
@@ -11,6 +11,7 @@
             <dl class="admin-detail-list">
                 <div><dt>User</dt><dd><a class="admin-inline-link" href="{{ route('admin.users.show', $exchange->user) }}">{{ $exchange->user->name }}</a><small>{{ $exchange->user->email }}</small></dd></div>
                 <div><dt>USDT amount</dt><dd>{{ $exchange->usdt_amount }} USDT</dd></div>
+                <div><dt>Rate plan</dt><dd>{{ $exchange->rate_plan_name ?: 'Historical rate' }}</dd></div>
                 <div><dt>Reference rate</dt><dd>{{ \App\Models\ExchangeRate::formatDecimal($exchange->exchange_rate) }} INR / USDT</dd></div>
                 <div><dt>INR amount</dt><dd>₹{{ $exchange->inr_amount }}</dd></div>
                 <div><dt>Created</dt><dd>{{ $exchange->created_at->format('M j, Y · H:i') }}</dd></div>
@@ -20,14 +21,14 @@
         <section class="admin-panel">
             <div class="admin-panel-heading"><div><span class="admin-eyebrow">WORKFLOW</span><h2>Update request</h2><p>Every change is stored in the audit history.</p></div></div>
             @if (in_array($exchange->status, ['pending', 'processing'], true))
-                <form class="admin-form" method="POST" action="{{ route('admin.exchanges.update', $exchange) }}" data-confirm="This records an administrative workflow change. It does not transfer funds." data-confirm-title="Save exchange update?" data-confirm-button="Save update">
+                <form class="admin-form" method="POST" action="{{ route('admin.exchanges.update', $exchange) }}" data-confirm="Completing this exchange atomically debits USD and credits INR. It does not initiate a bank transfer." data-confirm-title="Save exchange update?" data-confirm-button="Save update">
                     @csrf @method('PUT')
                     <label for="status">Next status</label>
                     <select class="portal-input" id="status" name="status" required>
                         @if ($exchange->status === 'pending')<option value="processing">Processing</option><option value="rejected">Rejected</option>@else<option value="completed">Completed</option><option value="rejected">Rejected</option>@endif
                     </select>
                     @error('status')<span class="admin-field-error">{{ $message }}</span>@enderror
-                    <label for="transaction_reference">Transaction reference <span>(required for completion)</span></label>
+                    <label for="transaction_reference">Verification reference <span>(required for completion)</span></label>
                     <input class="portal-input" id="transaction_reference" name="transaction_reference" value="{{ old('transaction_reference', $exchange->transaction_reference) }}" maxlength="150">
                     @error('transaction_reference')<span class="admin-field-error">{{ $message }}</span>@enderror
                     <label for="admin_notes">Admin notes</label>

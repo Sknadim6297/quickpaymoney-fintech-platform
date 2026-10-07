@@ -148,6 +148,13 @@ body {
     margin-bottom: 15px;
 }
 
+.register-field-error {
+    display: block;
+    margin: 6px 4px 0;
+    color: #ff8995;
+    font-size: 11px;
+}
+
 .form-control-custom {
     width: 100%;
     height: 54px;

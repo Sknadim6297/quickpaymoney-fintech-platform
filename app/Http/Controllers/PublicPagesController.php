@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ExchangeRate;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class PublicPagesController extends Controller
@@ -26,6 +27,7 @@ class PublicPagesController extends Controller
         return view('pages.exchange', [
             'ratePlans' => $ratePlans,
             'recordedBalance' => $customer?->role === 'user' ? $customer->balance : null,
+            'exchangeSubmissionKey' => (string) Str::uuid(),
         ]);
     }
 

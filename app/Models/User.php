@@ -7,11 +7,42 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
+use LogicException;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $user): void {
+            do {
+                $customerId = 'SKNA'.sprintf('%06d', random_int(0, 999999));
+            } while (self::query()->where('customer_id', $customerId)->exists());
+
+            $user->customer_id = $customerId;
+
+            if (! $user->referral_code) {
+                do {
+                    $referralCode = Str::upper(Str::random(12));
+                } while (self::query()->where('referral_code', $referralCode)->exists());
+
+                $user->referral_code = $referralCode;
+            }
+        });
+
+        static::updating(function (self $user): void {
+            if ($user->isDirty('customer_id')) {
+                throw new LogicException('A customer ID cannot be changed after account creation.');
+            }
+
+            if ($user->isDirty('referred_by_user_id')) {
+                throw new LogicException('A customer referral assignment cannot be changed after registration.');
+            }
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -51,6 +82,7 @@ class User extends Authenticatable
         'remember_token',
         'totp_secret',
         'balance',
+        'inr_balance',
     ];
 
     /**
@@ -67,6 +99,7 @@ class User extends Authenticatable
             'totp_enabled' => 'boolean',
             'totp_last_counter' => 'integer',
             'balance' => 'decimal:2',
+            'inr_balance' => 'decimal:2',
             'account_holder_name' => 'encrypted',
             'bank_name' => 'encrypted',
             'account_number' => 'encrypted',
@@ -90,5 +123,30 @@ class User extends Authenticatable
     public function balanceLedgerEntries(): HasMany
     {
         return $this->hasMany(BalanceLedgerEntry::class);
+    }
+
+    public function inrLedgerEntries(): HasMany
+    {
+        return $this->hasMany(InrLedgerEntry::class);
+    }
+
+    public function withdrawalRequests(): HasMany
+    {
+        return $this->hasMany(WithdrawalRequest::class);
+    }
+
+    public function supportTickets(): HasMany
+    {
+        return $this->hasMany(SupportTicket::class);
+    }
+
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(self::class, 'referred_by_user_id');
+    }
+
+    public function referrer(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(self::class, 'referred_by_user_id');
     }
 }

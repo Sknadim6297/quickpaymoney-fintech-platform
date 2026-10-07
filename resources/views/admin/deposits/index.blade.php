@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+    @extends('layouts.admin')
 @section('title', 'Quick PayMoney | Deposit Management')
 @section('admin-content')
     <div class="admin-page-heading">

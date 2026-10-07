@@ -324,8 +324,7 @@ class DepositManagementTest extends TestCase
             ->assertSee('Reference ID')
             ->assertSee('Amount (USD)')
             ->assertSee('Transaction ID')
-            ->assertSee('Submitted Date')
-            ->assertSee('Rejection Reason')
+            ->assertSee('Date')
             ->assertSee('Details')
             ->assertSee('UTRPROFILE')
             ->assertDontSee('UTRPROFILEOTHER')
@@ -341,7 +340,7 @@ class DepositManagementTest extends TestCase
             ->assertDontSee('UTRPROFILE0001');
     }
 
-    public function test_wallet_totals_use_only_approved_customer_ledger_entries_and_current_base_rate(): void
+    public function test_wallet_shows_actual_usd_and_inr_balances_without_estimated_conversions(): void
     {
         (new ExchangeRateSeeder)->run();
         ExchangeRate::where('plan_key', 'base')->update(['rate' => '100.00000000']);
@@ -386,8 +385,7 @@ class DepositManagementTest extends TestCase
         $this->actingAs($owner, 'web')->get(route('wallet'))
             ->assertOk()
             ->assertSee('$35.50')
-            ->assertSee('₹3,550.00')
-            ->assertSee('1 approved deposit')
+            ->assertSee('₹0.00')
             ->assertSee('UTRWALLETAPPROVED')
             ->assertSee('UTRWALLETREJECTED')
             ->assertSee('UTRWALLETPENDING')
@@ -427,7 +425,7 @@ class DepositManagementTest extends TestCase
 
         $this->get(route('profile'))
             ->assertOk()
-            ->assertSee('Change password')
+            ->assertSee('Reset Password')
             ->assertDontSee('Deposit History');
     }
 

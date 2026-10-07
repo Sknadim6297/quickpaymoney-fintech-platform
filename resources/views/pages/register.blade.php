@@ -96,6 +96,20 @@
 
                 </div>
 
+                <div class="input-group-custom">
+                    <input type="text"
+                           name="referral_code"
+                           class="form-control-custom"
+                           placeholder="Referral Code (optional)"
+                           value="{{ old('referral_code', request('ref')) }}"
+                           maxlength="12"
+                           autocapitalize="characters"
+                           autocomplete="off">
+                    @error('referral_code')
+                        <small class="register-field-error">{{ $message }}</small>
+                    @enderror
+                </div>
+
 
                 <!-- PASSWORD -->
 

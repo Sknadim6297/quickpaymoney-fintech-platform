@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BalanceLedgerEntry;
 use App\Models\Deposit;
-use App\Models\ExchangeRate;
-use App\Support\Decimal;
+use App\Models\WithdrawalRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -20,14 +19,8 @@ class WalletController extends Controller
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:150'],
             'status' => ['nullable', Rule::in(Deposit::STATUSES)],
+            'withdrawal_status' => ['nullable', Rule::in(WithdrawalRequest::STATUSES)],
         ]);
-
-        $ledger = BalanceLedgerEntry::query()
-            ->where('user_id', $user->id)
-            ->where('entry_type', 'credit')
-            ->whereHas('deposit', fn ($query) => $query->where('status', 'approved'));
-        $totalDeposited = (string) ($ledger->sum('amount') ?: '0.00');
-        $completedDepositCount = (clone $ledger)->count();
 
         $deposits = $user->deposits()
             ->when($filters['search'] ?? null, function ($query, string $search): void {
@@ -41,21 +34,22 @@ class WalletController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $baseRate = ExchangeRate::query()
-            ->where('plan_key', 'base')
-            ->where('is_active', true)
-            ->first();
-        $inrEquivalent = $baseRate
-            ? Decimal::multiplyToCents((string) $user->balance, (string) $baseRate->rate)
-            : null;
+        $withdrawals = $user->withdrawalRequests()
+            ->when($filters['withdrawal_status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
+            ->latest('requested_at')
+            ->paginate(10, ['*'], 'withdrawal_page')
+            ->withQueryString();
+        $hasBankDetails = filled($user->account_holder_name)
+            && filled($user->bank_name)
+            && filled($user->account_number)
+            && filled($user->ifsc_code);
 
         return view('pages.wallet', [
             'user' => $user,
             'deposits' => $deposits,
-            'totalDeposited' => $totalDeposited,
-            'completedDepositCount' => $completedDepositCount,
-            'inrEquivalent' => $inrEquivalent,
-            'withdrawalsTracked' => false,
+            'withdrawals' => $withdrawals,
+            'hasBankDetails' => $hasBankDetails,
+            'withdrawalSubmissionKey' => (string) Str::uuid(),
         ]);
     }
 }

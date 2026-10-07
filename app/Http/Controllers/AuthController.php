@@ -27,22 +27,41 @@ class AuthController extends Controller
 
     public function register(Request $request): RedirectResponse
     {
+        $request->merge([
+            'referral_code' => Str::upper(trim((string) $request->input('referral_code', ''))) ?: null,
+        ]);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'mobile' => ['nullable', 'string', 'max:20'],
             'gender' => ['nullable', 'in:Male,Female,Other'],
+            'referral_code' => [
+                'nullable',
+                'string',
+                'size:12',
+                'regex:/^[A-Z0-9]+$/',
+                Rule::exists('users', 'referral_code')->where(fn ($query) => $query->where('role', 'user')),
+            ],
             'password' => ['required', 'confirmed', PasswordRule::min(12)->letters()->mixedCase()->numbers()->symbols()],
             'terms' => ['accepted'],
         ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => Str::lower($validated['email']),
-            'mobile' => $validated['mobile'] ?? null,
-            'gender' => $validated['gender'] ?? null,
-            'password' => $validated['password'],
-        ]);
+        $user = DB::transaction(function () use ($validated): User {
+            $referrer = isset($validated['referral_code'])
+                ? User::query()->where('role', 'user')->where('referral_code', $validated['referral_code'])->firstOrFail()
+                : null;
+            $customer = new User([
+                'name' => $validated['name'],
+                'email' => Str::lower($validated['email']),
+                'mobile' => $validated['mobile'] ?? null,
+                'gender' => $validated['gender'] ?? null,
+                'password' => $validated['password'],
+            ]);
+            $customer->setAttribute('referred_by_user_id', $referrer?->id);
+            $customer->save();
+
+            return $customer;
+        });
 
         Auth::guard('web')->login($user);
         $request->session()->forget('url.intended');
@@ -153,11 +172,76 @@ class AuthController extends Controller
     public function profile(Request $request): View
     {
         $user = $request->user('web');
-        $tab = in_array($request->query('tab'), ['overview', 'details'], true)
-            ? $request->query('tab')
-            : 'overview';
+        abort_unless($user?->role === 'user', 403);
 
-        return view('pages.profile', compact('user', 'tab'));
+        return view('pages.profile', compact('user'));
+    }
+
+    public function bankDetails(Request $request): View
+    {
+        $user = $request->user('web');
+        abort_unless($user?->role === 'user', 403);
+
+        return view('pages.profile-bank', compact('user'));
+    }
+
+    public function exchangeHistory(Request $request): View
+    {
+        $user = $request->user('web');
+        abort_unless($user?->role === 'user', 403);
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', Rule::in(\App\Models\ExchangeRequest::STATUSES)],
+        ]);
+        $exchanges = $user->exchangeRequests()
+            ->when($filters['search'] ?? null, function ($query, string $search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query->where('request_reference', 'like', '%'.$search.'%')
+                        ->orWhere('transaction_reference', 'like', '%'.$search.'%');
+                });
+            })
+            ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('pages.profile-exchanges', compact('user', 'exchanges'));
+    }
+
+    public function showExchange(Request $request, int $exchangeRequest): View
+    {
+        $user = $request->user('web');
+        abort_unless($user?->role === 'user', 403);
+        $exchange = $user->exchangeRequests()->findOrFail($exchangeRequest);
+
+        return view('pages.profile-exchange-show', compact('user', 'exchange'));
+    }
+
+    public function referrals(Request $request): View
+    {
+        $user = $request->user('web');
+        abort_unless($user?->role === 'user', 403);
+        $referralCount = $user->referrals()->count();
+        $activeReferralCount = $user->referrals()->where('account_status', 'active')->count();
+
+        return view('pages.profile-referrals', compact('user', 'referralCount', 'activeReferralCount'));
+    }
+
+    public function referralHistory(Request $request): View
+    {
+        $user = $request->user('web');
+        abort_unless($user?->role === 'user', 403);
+        $referrals = $user->referrals()->latest()->paginate(10);
+
+        return view('pages.profile-referral-history', compact('user', 'referrals'));
+    }
+
+    public function showChangePassword(Request $request): View
+    {
+        $user = $request->user('web');
+        abort_unless($user?->role === 'user', 403);
+
+        return view('pages.profile-password', compact('user'));
     }
 
     public function updateProfile(Request $request): RedirectResponse
@@ -166,6 +250,7 @@ class AuthController extends Controller
             'section' => ['required', Rule::in(['personal', 'bank', 'wallet'])],
         ])['section'];
         $user = $request->user('web');
+        abort_unless($user?->role === 'user', 403);
 
         if ($section === 'personal') {
             $validated = $request->validate([
@@ -186,7 +271,7 @@ class AuthController extends Controller
                 'account_type' => ['required', Rule::in(['Savings', 'Current'])],
             ]);
             if ($validator->fails()) {
-                return redirect()->route('profile')
+                return redirect()->route('profile.bank')
                     ->withErrors($validator)
                     ->withInput($request->except([
                         'bank_current_password',
@@ -210,7 +295,7 @@ class AuthController extends Controller
                 'usdt_wallet_address' => ['required', 'string', 'max:255'],
             ]);
             if ($validator->fails()) {
-                return redirect()->route('profile')
+                return redirect()->route('profile.bank')
                     ->withErrors($validator)
                     ->withInput($request->except([
                         'bank_current_password',
@@ -241,7 +326,7 @@ class AuthController extends Controller
             ]);
         });
 
-        return redirect()->route('profile')->with('status', $message);
+        return redirect()->route(in_array($section, ['bank', 'wallet'], true) ? 'profile.bank' : 'profile')->with('status', $message);
     }
 
     public function changePassword(Request $request): RedirectResponse
@@ -252,9 +337,10 @@ class AuthController extends Controller
         ]);
 
         $user = $request->user('web');
+        abort_unless($user?->role === 'user', 403);
         DB::transaction(function () use ($user, $validated, $request): void {
             $user->forceFill([
-                'password' => $validated['password'],
+                'password' => Hash::make($validated['password']),
                 'remember_token' => Str::random(60),
             ])->save();
             AuditLog::create([
@@ -269,6 +355,6 @@ class AuthController extends Controller
         Auth::guard('web')->logoutOtherDevices($validated['password']);
         $request->session()->regenerate();
 
-        return back()->with('status', 'Password changed.');
+        return redirect()->route('profile.password')->with('status', 'Password changed.');
     }
 }

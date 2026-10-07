@@ -20,6 +20,10 @@
             request()->routeIs('admin.exchanges.index') => 'Exchange management',
             request()->routeIs('admin.deposits.show') => 'Deposit review',
             request()->routeIs('admin.deposits.index') => 'Deposit management',
+            request()->routeIs('admin.withdrawals.show') => 'Withdrawal review',
+            request()->routeIs('admin.withdrawals.index') => 'Withdrawal management',
+            request()->routeIs('admin.support-tickets.show') => 'Support ticket',
+            request()->routeIs('admin.support-tickets.index') => 'Support tickets',
             request()->routeIs('admin.deposit-settings.*') => 'Deposit settings',
             request()->routeIs('admin.rates.*') => 'Exchange rates',
             request()->routeIs('admin.profile*') => 'Admin profile',
@@ -39,6 +43,8 @@
                 <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users*') ? 'active' : '' }}" @if (request()->routeIs('admin.users*')) aria-current="page" @endif><i class="bi bi-people-fill" aria-hidden="true"></i><span>Users</span></a>
                 <a href="{{ route('admin.exchanges.index') }}" class="{{ request()->routeIs('admin.exchanges*') ? 'active' : '' }}" @if (request()->routeIs('admin.exchanges*')) aria-current="page" @endif><i class="bi bi-arrow-left-right" aria-hidden="true"></i><span>Exchanges</span></a>
                 <a href="{{ route('admin.deposits.index') }}" class="{{ request()->routeIs('admin.deposits*') ? 'active' : '' }}" @if (request()->routeIs('admin.deposits*')) aria-current="page" @endif><i class="bi bi-wallet2" aria-hidden="true"></i><span>Deposits</span></a>
+                <a href="{{ route('admin.withdrawals.index') }}" class="{{ request()->routeIs('admin.withdrawals*') ? 'active' : '' }}" @if (request()->routeIs('admin.withdrawals*')) aria-current="page" @endif><i class="bi bi-bank" aria-hidden="true"></i><span>Withdrawals</span></a>
+                <a href="{{ route('admin.support-tickets.index') }}" class="{{ request()->routeIs('admin.support-tickets*') ? 'active' : '' }}" @if (request()->routeIs('admin.support-tickets*')) aria-current="page" @endif><i class="bi bi-headset" aria-hidden="true"></i><span>Support Tickets</span></a>
                 <a href="{{ route('admin.deposit-settings.edit') }}" class="{{ request()->routeIs('admin.deposit-settings.*') ? 'active' : '' }}" @if (request()->routeIs('admin.deposit-settings.*')) aria-current="page" @endif><i class="bi bi-qr-code" aria-hidden="true"></i><span>Deposit settings</span></a>
                 <a href="{{ route('admin.rates.edit') }}" class="{{ request()->routeIs('admin.rates*') ? 'active' : '' }}" @if (request()->routeIs('admin.rates*')) aria-current="page" @endif><i class="bi bi-currency-exchange" aria-hidden="true"></i><span>Exchange rates</span></a>
 

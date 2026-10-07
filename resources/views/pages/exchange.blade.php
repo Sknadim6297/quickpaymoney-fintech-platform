@@ -330,7 +330,7 @@
             <div><dt>USDT Amount</dt><dd id="withdrawal-amount-value">—</dd></div>
             <div class="withdrawal-estimate"><dt>Estimated INR Amount</dt><dd id="withdrawal-estimated-inr">—</dd></div>
         </dl>
-        <p class="withdrawal-calculator-disclaimer">Informational estimate only, subject to verification and applicable fees. Actual withdrawal requests and transfers are not available.</p>
+        <p class="withdrawal-calculator-disclaimer">Informational estimate only, subject to verification and applicable fees. Use the sell request form below to request a rate-locked exchange into your INR balance.</p>
     </section>
 
     <section class="trade-usdt-banner">

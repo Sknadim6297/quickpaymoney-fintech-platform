@@ -3,224 +3,122 @@
 @section('title', 'Quick PayMoney | Premium Support')
 
 @section('font')
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 @endsection
 
 @section('styles')
-<link href="{{ asset('assets/css/contact.css') }}" rel="stylesheet">
-<link href="{{ asset('assets/css/style.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/contact.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/style.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/support.css') }}" rel="stylesheet">
 @endsection
 
 @section('content')
     <div class="main-wrapper">
-
-
-        <!-- HEADER -->
-
         @include('partials.account-header', ['actionRoute' => 'login', 'actionLabel' => 'Login', 'actionClass' => 'header-btn', 'showContact' => false])
 
-
-
-        <!-- SUPPORT -->
-
         <main class="support-area">
-
-
-        <!-- PREMIUM SUPPORT -->
-
-        <div class="support-banner">
-
-            <div class="support-icon">
-
-                <i class="bi bi-headset"></i>
-
+            <div class="support-banner">
+                <div class="support-icon"><i class="bi bi-headset" aria-hidden="true"></i></div>
+                <h1>24/7 Premium Support</h1>
+                <p>We're here whenever you need us.</p>
             </div>
 
-            <h1>
-                Quick PayMoney Support
-            </h1>
+            @if (session('status'))
+                <div class="support-status-message" role="status">{{ session('status') }}</div>
+            @endif
 
-            <p>
-                Support channels are not configured yet.
-            </p>
-
-        </div>
-
-
-
-        <!-- FORM CARD -->
-
-        <div class="support-card">
-
-
-            <div class="support-heading">
-
-                <h2>
-                    Let's Solve Your Problem
-                </h2>
-
-                <p>
-                    Contact form submission is unavailable. No message will be sent or stored.
-                </p>
-
-            </div>
-
-
-
-            <form action="{{ route('contact') }}"
-                  method="post">
-                <fieldset disabled style="border:0;padding:0;margin:0">
-
-
-                <!-- NAME -->
-
-                <div class="input-group-custom">
-
-                    <input type="text"
-                           name="name"
-                           class="form-control-custom"
-                           placeholder="Full Name"
-                           required>
-
+            <section class="support-card">
+                <div class="support-heading">
+                    <h2>Let's Solve Your Problem</h2>
+                    <p>Tell us how we can help you.</p>
                 </div>
 
+                <form action="{{ route('support.tickets.store') }}" method="POST">
+                    @csrf
 
-                <!-- MOBILE -->
+                    @guest
+                        <div class="input-group-custom">
+                            <input class="form-control-custom" id="support-name" name="name" type="text"
+                                placeholder="Full Name" value="{{ old('name') }}" maxlength="120"
+                                autocomplete="name" required>
+                            @error('name') <span class="support-field-error">{{ $message }}</span> @enderror
+                        </div>
 
-                <div class="input-group-custom">
+                        <div class="input-group-custom">
+                            <input class="form-control-custom" id="support-email" name="email" type="email"
+                                placeholder="Email Address" value="{{ old('email') }}" maxlength="255"
+                                autocomplete="email" required>
+                            @error('email') <span class="support-field-error">{{ $message }}</span> @enderror
+                        </div>
+                    @endguest
 
-                    <input type="tel"
-                           name="mobile"
-                           class="form-control-custom"
-                           placeholder="Mobile Number"
-                           maxlength="10"
-                           inputmode="numeric"
-                           pattern="[0-9]{10}"
-                           required>
-
-                </div>
-
-
-                <!-- EMAIL -->
-
-                <div class="input-group-custom">
-
-                    <input type="email"
-                           name="email"
-                           class="form-control-custom"
-                           placeholder="Email Address"
-                           required>
-
-                </div>
-
-
-                <!-- SUBJECT -->
-
-                <div class="input-group-custom">
-
-                    <input type="text"
-                           name="subject"
-                           class="form-control-custom"
-                           placeholder="Subject"
-                           required>
-
-                </div>
-
-
-                <!-- GENDER -->
-
-                <div class="gender-label">
-                    Select Gender
-                </div>
-
-
-                <div class="gender-options">
-
-                    <div class="gender-option">
-
-                        <input type="radio"
-                               name="gender"
-                               id="male"
-                               value="Male"
-                               required>
-
-                        <label for="male">
-                            Male
-                        </label>
-
+                    <div class="input-group-custom">
+                        <input class="form-control-custom" id="support-subject" name="subject" type="text"
+                            placeholder="Subject" value="{{ old('subject') }}" maxlength="150" required>
+                        @error('subject') <span class="support-field-error">{{ $message }}</span> @enderror
                     </div>
 
-
-                    <div class="gender-option">
-
-                        <input type="radio"
-                               name="gender"
-                               id="female"
-                               value="Female">
-
-                        <label for="female">
-                            Female
-                        </label>
-
+                    <div class="input-group-custom">
+                        <select class="form-control-custom" id="support-category" name="category" required>
+                            <option value="" disabled @selected(!old('category'))>Choose a category</option>
+                            @foreach ($categories as $category)
+                                <option value="{{ $category }}" @selected(old('category') === $category)>{{ $category }}</option>
+                            @endforeach
+                        </select>
+                        @error('category') <span class="support-field-error">{{ $message }}</span> @enderror
                     </div>
 
-
-                    <div class="gender-option">
-
-                        <input type="radio"
-                               name="gender"
-                               id="other"
-                               value="Other">
-
-                        <label for="other">
-                            Other
-                        </label>
-
+                    <div class="input-group-custom">
+                        <textarea class="form-control-custom" id="support-message" name="message" rows="5"
+                            placeholder="Describe your problem..." maxlength="5000" required>{{ old('message') }}</textarea>
+                        @error('message') <span class="support-field-error">{{ $message }}</span> @enderror
                     </div>
 
-                </div>
+                    <button class="submit-btn" type="submit">
+                        <i class="bi bi-send-fill" aria-hidden="true"></i>
+                        Submit Request
+                    </button>
+                </form>
+            </section>
 
+            @if ($customer)
+                <section class="support-card support-ticket-list">
+                    <div class="support-heading">
+                        <h2>My Support Tickets</h2>
+                    </div>
 
-                <!-- MESSAGE -->
+                    @foreach ($replyNotifications as $notification)
+                        <a class="support-notification-link"
+                            href="{{ route('support.tickets.show', $notification->data['ticket_number']) }}">
+                            {{ $notification->data['message'] ?? 'You have a support reply.' }}
+                        </a>
+                    @endforeach
 
-                <div class="input-group-custom">
+                    @forelse ($tickets as $ticket)
+                        <article class="support-ticket-row">
+                            <div class="support-ticket-info">
+                                <strong>{{ $ticket->ticket_number }}</strong>
+                                <span>{{ $ticket->subject }}</span>
+                                <small>
+                                    {{ $ticket->category }} · {{ str($ticket->status)->replace('_', ' ')->title() }} ·
+                                    {{ $ticket->updated_at->format('M j, Y g:i A') }}
+                                </small>
+                            </div>
+                            <a class="support-ticket-view" href="{{ route('support.tickets.show', $ticket->ticket_number) }}">
+                                View
+                            </a>
+                        </article>
+                    @empty
+                        <p class="support-empty-state">No support tickets yet.</p>
+                    @endforelse
 
-                    <textarea name="message"
-                              class="form-control-custom"
-                              placeholder="Describe your problem..."
-                              required></textarea>
-
-                </div>
-
-
-                <!-- SUBMIT -->
-
-                <button type="submit"
-                        class="submit-btn">
-
-                    <i class="bi bi-send-fill"></i>
-
-                    Submit Request
-
-                </button>
-
-                </fieldset>
-            </form>
-
-
-        </div> 
-
-    </main>
-
-        
-        <!-- =====================================
-         WHATSAPP
-    ====================================== -->
-
-        <!-- BOTTOM NAV -->
+                    @if ($tickets->hasPages())
+                        <div class="support-pagination">{{ $tickets->links() }}</div>
+                    @endif
+                </section>
+            @endif
+        </main>
 
         @include('partials.bottom-nav', ['active' => 'profile', 'variant' => 'standard'])
-
     </div>
 @endsection

@@ -2645,3 +2645,37 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+.exchange-request-card {
+    margin-top: 18px;
+}
+
+.exchange-request-form {
+    display: grid;
+    gap: 9px;
+}
+
+.exchange-request-form > label {
+    color: #ddd;
+    font-size: 13px;
+}
+
+.exchange-request-form .withdrawal-calculator-disclaimer {
+    margin: 0;
+}
+
+.exchange-request-submit {
+    min-height: 46px;
+    border: 0;
+    border-radius: 12px;
+    background: linear-gradient(105deg, #148955, #1aa566);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.exchange-request-submit:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -35,6 +36,9 @@ class AuthenticationAndPortalTest extends TestCase
         $response->assertRedirect(route('home'));
         $this->assertSame('user', $user->role);
         $this->assertSame('active', $user->account_status);
+        $this->assertMatchesRegularExpression('/^SKNA[0-9]{6}$/', $user->customer_id);
+        $this->assertMatchesRegularExpression('/^[A-Z0-9]{12}$/', $user->referral_code);
+        $this->assertNull($user->referred_by_user_id);
         $this->assertNull($user->email_verified_at);
         $this->assertTrue(Hash::check('StrongPassword!123', $user->password));
         $this->assertAuthenticatedAs($user, 'web');
@@ -43,6 +47,88 @@ class AuthenticationAndPortalTest extends TestCase
             ->assertSee('Your account has been created successfully.');
         $this->get(route('dashboard'))->assertRedirect(route('home'));
         $this->assertFalse(Route::has('verification.notice'));
+    }
+
+    public function test_customer_ids_are_unique_immutable_and_not_mass_assignable(): void
+    {
+        $first = User::factory()->create();
+        $second = User::factory()->create();
+        $attemptedId = 'SKNAABCDEF';
+        $submitted = new User([
+            'name' => 'Submitted ID',
+            'email' => 'submitted-id@example.test',
+            'password' => 'password',
+            'customer_id' => $attemptedId,
+        ]);
+        $submitted->save();
+
+        $this->assertMatchesRegularExpression('/^SKNA[0-9]{6}$/', $first->customer_id);
+        $this->assertMatchesRegularExpression('/^SKNA[0-9]{6}$/', $second->customer_id);
+        $this->assertNotSame($first->customer_id, $second->customer_id);
+        $this->assertNotSame($attemptedId, $submitted->customer_id);
+        $this->assertSame(10, strlen($first->customer_id));
+        $this->assertTrue(collect(Schema::getIndexes('users'))->contains(
+            fn (array $index): bool => $index['columns'] === ['customer_id'] && $index['unique']
+        ));
+        $originalId = $first->customer_id;
+
+        try {
+            $first->customer_id = 'SKNA000000';
+            $first->save();
+            $this->fail('Customer ID was changed after account creation.');
+        } catch (\LogicException $exception) {
+            $this->assertSame('A customer ID cannot be changed after account creation.', $exception->getMessage());
+        }
+        $this->assertSame($originalId, $first->fresh()->customer_id);
+    }
+
+    public function test_customer_id_migration_backfills_existing_accounts(): void
+    {
+        $first = User::factory()->create();
+        $second = User::factory()->create();
+        DB::table('users')->where('id', $first->id)->update(['customer_id' => 'QPMABCDEFGH']);
+        DB::table('users')->where('id', $second->id)->update(['customer_id' => null]);
+        $third = User::factory()->create(['customer_id' => null]);
+        $validId = $third->customer_id;
+        $migration = require database_path('migrations/2026_10_07_120000_reformat_public_customer_ids.php');
+        $migration->up();
+
+        $firstId = $first->fresh()->customer_id;
+        $secondId = $second->fresh()->customer_id;
+        $this->assertMatchesRegularExpression('/^SKNA[0-9]{6}$/', $firstId);
+        $this->assertMatchesRegularExpression('/^SKNA[0-9]{6}$/', $secondId);
+        $this->assertNotSame($firstId, $secondId);
+        $this->assertSame($validId, $third->fresh()->customer_id);
+    }
+
+    public function test_registration_associates_a_valid_customer_referrer_and_rejects_non_customer_codes(): void
+    {
+        $referrer = User::factory()->create();
+        $response = $this->post(route('register.store'), [
+            'name' => 'Referred Customer',
+            'email' => 'referred@example.test',
+            'referral_code' => strtolower($referrer->referral_code),
+            'password' => 'StrongPassword!123',
+            'password_confirmation' => 'StrongPassword!123',
+            'terms' => '1',
+        ]);
+        $response->assertRedirect(route('home'));
+        $referred = User::where('email', 'referred@example.test')->firstOrFail();
+        $this->assertSame($referrer->id, $referred->referred_by_user_id);
+        $this->assertNotSame($referrer->referral_code, $referred->referral_code);
+
+        Auth::guard('web')->logout();
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->from(route('register'))->post(route('register.store'), [
+            'name' => 'Invalid Referrer Customer',
+            'email' => 'invalid-referrer@example.test',
+            'referral_code' => $admin->referral_code,
+            'password' => 'StrongPassword!123',
+            'password_confirmation' => 'StrongPassword!123',
+            'terms' => '1',
+        ])->assertRedirect(route('register'))
+            ->assertSessionHasErrors('referral_code');
+        $this->assertDatabaseMissing('users', ['email' => 'invalid-referrer@example.test']);
     }
 
     public function test_user_login_redirects_home_and_suspended_account_is_denied(): void
@@ -81,20 +167,30 @@ class AuthenticationAndPortalTest extends TestCase
 
         $this->actingAs($user, 'web')->get(route('profile'))
             ->assertOk()
-            ->assertSee('Account Information')
-            ->assertSee(route('profile', ['tab' => 'details']))
-            ->assertSee(route('wallet'))
-            ->assertSee('Change password')
-            ->assertDontSee('Deposit History')
-            ->assertDontSee('Account overview')
-            ->assertDontSee('Exchange and transaction history')
-            ->assertDontSee('98765.43210000');
-
-        $this->actingAs($user, 'web')->get(route('profile', ['tab' => 'details']))
-            ->assertOk()
-            ->assertSee('Profile Details')
+            ->assertSee('Account Balance')
+            ->assertSee('Total Reward')
+            ->assertSee('ID: <strong>'.$user->customer_id.'</strong>', false)
+            ->assertDontSee('ID: <strong>'.$user->id.'</strong>', false)
+            ->assertDontSee('no reward ledger')
+            ->assertSee('Enter Bank Details')
+            ->assertSee('Sell Now')
             ->assertSee('Bank Details')
-            ->assertDontSee('Change password');
+            ->assertSee('Exchange History')
+            ->assertSee('Referrals History')
+            ->assertSee('Reset Password')
+            ->assertDontSee('Deposit History')
+            ->assertDontSee('98765.43210000');
+        $this->assertMatchesRegularExpression('/^SKNA[0-9]{6}$/', $user->customer_id);
+
+        $this->actingAs($user, 'web')->get(route('profile.bank'))
+            ->assertOk()
+            ->assertSee('Bank Details')
+            ->assertSee('USDT Wallet Details');
+
+        $this->actingAs($user, 'web')->get(route('profile.password'))
+            ->assertOk()
+            ->assertSee('Current Password')
+            ->assertSee('New Password');
 
         $unverified = User::factory()->unverified()->create()->fresh();
         $this->actingAs($unverified, 'web')->get(route('profile'))
@@ -132,7 +228,7 @@ class AuthenticationAndPortalTest extends TestCase
             'current_password' => 'CurrentStrong!Password123',
             'password' => 'ReplacementStrong!Password456',
             'password_confirmation' => 'ReplacementStrong!Password456',
-        ])->assertRedirect(route('profile'))
+        ])->assertRedirect(route('profile.password'))
             ->assertSessionHas('status', 'Password changed.');
 
         $this->assertTrue(Hash::check('ReplacementStrong!Password456', $user->fresh()->password));
@@ -143,12 +239,10 @@ class AuthenticationAndPortalTest extends TestCase
         $user = User::factory()->create(['password' => 'CurrentStrong!Password123']);
 
         $this->actingAs($user, 'web')
-            ->get(route('profile', ['tab' => 'details']))
+            ->get(route('profile.bank'))
             ->assertOk()
-            ->assertSee('Personal Information')
             ->assertSee('Bank Details')
             ->assertSee('USDT Wallet Details')
-            ->assertSee('Email Address')
             ->assertSee('name="account_number"', false)
             ->assertSee('name="usdt_wallet_address"', false);
 
@@ -163,32 +257,32 @@ class AuthenticationAndPortalTest extends TestCase
             'account_type' => 'Savings',
         ];
 
-        $this->from(route('profile'))
+        $this->from(route('profile.bank'))
             ->put(route('profile.update'), $bankDetails)
-            ->assertRedirect(route('profile'))
+            ->assertRedirect(route('profile.bank'))
             ->assertSessionHasErrors('bank_current_password')
             ->assertSessionMissing('_old_input.account_number')
             ->assertSessionMissing('_old_input.bank_current_password');
         $this->assertNull($user->fresh()->account_number);
 
-        $this->from(route('profile'))
+        $this->from(route('profile.bank'))
             ->put(route('profile.update'), [
                 ...$bankDetails,
                 'bank_current_password' => 'CurrentStrong!Password123',
                 'ifsc_code' => 'invalid',
                 'account_type' => 'Business',
             ])
-            ->assertRedirect(route('profile'))
+            ->assertRedirect(route('profile.bank'))
             ->assertSessionHasErrors(['ifsc_code', 'account_type'])
             ->assertSessionMissing('_old_input.account_number');
         $this->assertNull($user->fresh()->account_number);
 
-        $this->from(route('profile'))
+        $this->from(route('profile.bank'))
             ->put(route('profile.update'), [
                 ...$bankDetails,
                 'bank_current_password' => 'CurrentStrong!Password123',
             ])
-            ->assertRedirect(route('profile'))
+            ->assertRedirect(route('profile.bank'))
             ->assertSessionHas('status', 'Bank details updated.');
 
         $user->refresh();
@@ -214,9 +308,9 @@ class AuthenticationAndPortalTest extends TestCase
             'usdt_wallet_address' => 'TQn9Y2khDD95J42FQtQTdwV',
         ];
 
-        $this->from(route('profile'))
+        $this->from(route('profile.bank'))
             ->put(route('profile.update'), $walletDetails)
-            ->assertRedirect(route('profile'))
+            ->assertRedirect(route('profile.bank'))
             ->assertSessionHas('status', 'USDT wallet details updated.');
 
         $user->refresh();
@@ -226,14 +320,122 @@ class AuthenticationAndPortalTest extends TestCase
         $this->get(route('profile'))
             ->assertOk();
 
-        $this->get(route('profile', ['tab' => 'details']))
+        $this->get(route('profile.bank'))
             ->assertOk()
-            ->assertSee('Morgan Example')
-            ->assertSee('Example Bank')
-            ->assertSee('TQn9Y2khDD95J42FQtQTdwV');
+            ->assertSee('Bank account on file ending in 9012')
+            ->assertSee('A wallet address is saved')
+            ->assertDontSee('TQn9Y2khDD95J42FQtQTdwV');
     }
 
-    public function test_home_header_has_guest_and_authenticated_account_controls(): void
+    public function test_profile_exchange_history_is_customer_scoped_and_uses_stored_snapshots(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $ownRequest = ExchangeRequest::create([
+            'user_id' => $user->id,
+            'usdt_amount' => '5.12345678',
+            'exchange_rate' => '101.25000000',
+            'inr_amount' => '518.75',
+            'status' => 'completed',
+            'transaction_reference' => 'OWN-REFERENCE',
+        ]);
+        $otherRequest = ExchangeRequest::create([
+            'user_id' => $otherUser->id,
+            'usdt_amount' => '98765.43210000',
+            'exchange_rate' => '91.00000000',
+            'inr_amount' => '8987654.32',
+            'status' => 'pending',
+            'transaction_reference' => 'OTHER-PRIVATE-REFERENCE',
+        ]);
+
+        $this->actingAs($user, 'web')->get(route('profile.exchanges'))
+            ->assertOk()
+            ->assertSee('OWN-REFERENCE')
+            ->assertSee('5.12345678 USDT')
+            ->assertSee('₹101.25')
+            ->assertDontSee('OTHER-PRIVATE-REFERENCE')
+            ->assertDontSee('98765.43210000');
+
+        $this->get(route('profile.exchanges.show', $ownRequest))
+            ->assertOk()
+            ->assertSee('518.75')
+            ->assertSee('historical values recorded');
+        $this->get(route('profile.exchanges.show', $otherRequest))
+            ->assertNotFound();
+    }
+
+    public function test_referrals_pages_show_real_counts_and_privacy_safe_history(): void
+    {
+        $referrer = User::factory()->create(['name' => 'Referral Owner']);
+        $referred = User::factory()->create([
+            'name' => 'Private Customer Name',
+            'referred_by_user_id' => $referrer->id,
+            'account_status' => 'active',
+        ]);
+
+        $this->actingAs($referrer, 'web')->get(route('profile.referrals'))
+            ->assertOk()
+            ->assertSee($referrer->referral_code)
+            ->assertSee(route('register', ['ref' => $referrer->referral_code]))
+            ->assertSee('Total Referrals')
+            ->assertSee('Active Referrals');
+
+        $this->get(route('profile.referrals.history'))
+            ->assertOk()
+            ->assertSee('#'.$referred->id)
+            ->assertSee('Referred customer')
+            ->assertDontSee('Private Customer Name')
+            ->assertDontSee($referred->email);
+    }
+
+    public function test_referral_assignment_cannot_be_changed_after_registration(): void
+    {
+        $firstReferrer = User::factory()->create();
+        $secondReferrer = User::factory()->create();
+        $referred = User::factory()->create(['referred_by_user_id' => $firstReferrer->id]);
+
+        try {
+            $referred->referred_by_user_id = $secondReferrer->id;
+            $referred->save();
+            $this->fail('A referral assignment was changed after registration.');
+        } catch (\LogicException $exception) {
+            $this->assertSame(
+                'A customer referral assignment cannot be changed after registration.',
+                $exception->getMessage()
+            );
+        }
+    }
+
+    public function test_profile_routes_require_a_customer_session_and_reject_admin_users(): void
+    {
+        $this->get(route('profile'))->assertRedirect(route('login'));
+        $this->get(route('profile.bank'))->assertRedirect(route('login'));
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin, 'web')->get(route('profile'))->assertForbidden();
+        $this->get(route('profile.referrals.history'))->assertForbidden();
+        $this->put(route('profile.update'), [
+            'section' => 'personal',
+            'name' => 'Changed Admin',
+        ])->assertForbidden();
+        $this->put(route('password.change'), [
+            'current_password' => 'password',
+            'password' => 'ReplacementStrong!Password456',
+            'password_confirmation' => 'ReplacementStrong!Password456',
+        ])->assertForbidden();
+    }
+
+    public function test_customer_logout_uses_post_and_is_not_exposed_as_a_get_route(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user, 'web')->get(route('logout'))
+            ->assertMethodNotAllowed();
+        $this->post(route('logout'))
+            ->assertRedirect(route('home'));
+        $this->assertGuest('web');
+    }
+
+    public function test_home_header_has_guest_controls_and_authenticated_support_wallet_icons(): void
     {
         $this->get(route('home'))
             ->assertOk()
@@ -248,14 +450,14 @@ class AuthenticationAndPortalTest extends TestCase
         $user = User::factory()->create(['name' => 'Morgan Example']);
         $this->actingAs($user, 'web')->get(route('home'))
             ->assertOk()
-            ->assertSee('Account menu for Morgan Example')
-            ->assertSee('>Profile</a>', false)
-            ->assertSee('My Wallet')
-            ->assertSee(route('profile'))
+            ->assertDontSee('Account menu for Morgan Example')
+            ->assertDontSee('data-user-menu-toggle')
+            ->assertDontSee('bi-person-circle')
+            ->assertSee('aria-label="My Wallet"', false)
             ->assertSee(route('wallet'))
-            ->assertSee(route('logout'))
-            ->assertSee('name="_token"', false)
-            ->assertSee('data-user-menu-toggle');
+            ->assertSee('aria-label="Contact support"', false)
+            ->assertSee(route('contact'))
+            ->assertSee(route('profile'));
     }
 
     public function test_homepage_restores_original_demo_rate_stats_and_conversion_rows(): void
@@ -780,7 +982,7 @@ class AuthenticationAndPortalTest extends TestCase
             'totp_enabled' => true,
             'totp_secret' => Totp::generateSecret(),
         ])->fresh();
-        $user = User::factory()->create(['email_verified_at' => now()]);
+        $user = User::factory()->create(['email_verified_at' => now(), 'balance' => '25.00']);
         $exchange = ExchangeRequest::create([
             'user_id' => $user->id,
             'usdt_amount' => '25.00000000',
@@ -818,9 +1020,11 @@ class AuthenticationAndPortalTest extends TestCase
         $this->put(route('admin.exchanges.update', $exchange), [
             'status' => 'completed',
             'transaction_reference' => 'MANUAL-REF-001',
-            'admin_notes' => 'Reference recorded; no settlement performed.',
+            'admin_notes' => 'USD debited and INR credited from the saved rate snapshot.',
         ])->assertSessionHas('status');
         $this->assertDatabaseHas('exchange_requests', ['id' => $exchange->id, 'status' => 'completed']);
+        $this->assertSame('0.00', $user->fresh()->balance);
+        $this->assertSame('2250.00', $user->fresh()->inr_balance);
     }
 
     public function test_every_admin_management_page_uses_the_branded_admin_shell(): void
