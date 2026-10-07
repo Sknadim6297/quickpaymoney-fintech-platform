@@ -32,7 +32,7 @@
     flex: 0 0 264px;
     flex-direction: column;
     width: 264px;
-    height: 100vh;
+    min-height: 100vh;
     padding: 28px 18px 18px;
     border-right: 1px solid var(--admin-line);
     background: linear-gradient(180deg, #090909 0%, #050505 100%);
@@ -1653,6 +1653,8 @@
         left: 0;
         width: min(290px, calc(100vw - 54px));
         height: 100dvh;
+        min-height: 100dvh;
+        overflow-y: auto;
         transform: translateX(-105%);
         transition: transform .22s ease;
         box-shadow: 18px 0 40px rgba(0, 0, 0, .35);
